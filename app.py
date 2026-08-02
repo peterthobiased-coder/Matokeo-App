@@ -237,4 +237,4 @@ if st.button("Hifadhi na Uchakate Matokeo kwa Ujumla"):
             data=csv_kamili,
             file_name=f"Matokeo_{shule}_{mwaka}.csv",
             mime="text/csv"
-                )
+        )
