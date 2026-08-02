@@ -2,180 +2,239 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-st.set_page_config(page_title="School Results & Report System", layout="wide")
+# 1. Caching kwa ajili ya usalama na kasi ya mfumo
+@st.cache_data
+def calculate_grade_and_points(score):
+    if pd.isna(score) or score == '':
+        return None, None
+    try:
+        score = float(score)
+        if score >= 75: return 'A', 1
+        elif score >= 65: return 'B', 2
+        elif score >= 45: return 'C', 3
+        elif score >= 30: return 'D', 4
+        else: return 'F', 5
+    except ValueError:
+        return None, None
 
-# --- KAZI ZA ZIADA / UTANGAULIZI ---
-def calculate_grade(score):
-    if pd.isna(score) or score == "" or score == "-": return "-"
-    try: score = float(score)
-    except: return "-"
-    if score >= 75: return "A"
-    elif score >= 65: return "B"
-    elif score >= 45: return "C"
-    elif score >= 30: return "D"
-    else: return "F"
+@st.cache_data
+def calculate_division(total_points, selected_subjects_count):
+    if selected_subjects_count < 7:
+        return 'I-VII (Masomo Chini ya 7)'
+    if total_points >= 7 and total_points <= 17: return 'I'
+    elif total_points <= 21: return 'II'
+    elif total_points <= 25: return 'III'
+    elif total_points <= 33: return 'IV'
+    else: return '0'
 
-def grade_points(grade):
-    return {"A": 1, "B": 2, "C": 3, "D": 4, "F": 5}.get(grade, 0)
+# 2. Muundo wa Ukurasa
+st.set_page_config(page_title="Mfumo wa Matokeo O-Level", layout="wide")
 
-def calculate_division(total_points, subjects_counted):
-    if subjects_counted < 7: return "N/A (< 7 Masomo)"
-    if total_points >= 7 and total_points <= 17: return "I"
-    elif total_points <= 21: return "II"
-    elif total_points <= 25: return "III"
-    elif total_points <= 29: return "IV"
-    else: return "0"
+st.title("Mfumo wa Kuchakata Matokeo ya Mtihani (O-Level)")
+st.write("Weka taarifa za shule, sajili masomo, na weka alama kupata ripoti kamili na summary ya masomo chini.")
 
-# --- INITIALIZE SESSION STATES ---
-if 'school_info' not in st.session_state:
-    st.session_state.school_info = {
-        "council": "KYERWA DISTRICT COUNCIL",
-        "region": "KAGERA",
-        "school": "S3060 KAMULI SECONDARY SCHOOL",
-        "exam_title": "FORM THREE TERMINAL EXAMINATION RESULTS"
-    }
-if 'students' not in st.session_state:
-    st.session_state.students = pd.DataFrame(columns=['S/N', 'NAME', 'SEX'])
-if 'registered_subjects' not in st.session_state:
-    st.session_state.registered_subjects = {}  # {'student_sn': [list of subjects]}
-if 'test_marks' not in st.session_state:
-    st.session_state.test_marks = pd.DataFrame()
-if 'exam_marks' not in st.session_state:
-    st.session_state.exam_marks = pd.DataFrame()
+# 3. Sehemu ya Taarifa za Shule / Mtihani
+st.sidebar.header("Taarifa za Shule & Mtihani")
+mkoa = st.sidebar.text_input("Mkoa", "MWANZA")
+wilaya = st.sidebar.text_input("Wilaya/Halmashauri", "BUCHOSA DISTRICT COUNCIL")
+shule = st.sidebar.text_input("Jina la Shule", "CHEMA SECONDARY SCHOOL")
+namba_shule = st.sidebar.text_input("Namba ya Kituo (Centre No)", "S7647")
+aina_mtihani = st.sidebar.text_input("Aina ya Mtihani", "FORM FOUR LAKE ZONE MOCK EXAMINATION")
+mwaka = st.sidebar.text_input("Mwaka/Mwezi", "MAY 2026")
 
-ALL_SUBJECTS = ["CIVICS", "HISTORY", "GEOGRAPHY", "KISWAHILI", "ENGLISH", "PHYSICS", "CHEMISTRY", "BIOLOGY", "BASIC MATH"]
+# 4. Usajili wa Masomo yanayofundishwa
+st.sidebar.header("Usajili wa Masomo")
+masomo_yote = ['CIVICS', 'HISTORY', 'GEOGRAPHY', 'KISWAHILI', 'ENGLISH LANGUAGE', 'PHYSICS', 'CHEMISTRY', 'BIOLOGY', 'BASIC MATHEMATICS', 'LITERATURE IN ENGLISH']
+masomo_yaliyosajiliwa = st.sidebar.multiselect("Chagua masomo yanayochakatwa shuleni", masomo_yote, default=masomo_yote)
 
-# --- SIDEBAR MENU ---
-st.sidebar.title("MENU YA MFUMO")
-page = st.sidebar.radio("Nenda Sehemu:", [
-    "⚙️ Mipangilio ya Shule", 
-    "📝 Sajili Wanafunzi & Masomo", 
-    "📊 Ingiza Alama (Majaribio)", 
-    "✍️ Ingiza Alama (Mitihani)", 
-    "📋 Ripoti ya Matokeo ya NECTA"
-])
+# 5. Kuingiza Alama za Wanafunzi
+st.header("Ingiza Alama za Wanafunzi")
+if 'data_wanafunzi' not in st.session_state:
+    st.session_state.data_wanafunzi = pd.DataFrame(columns=['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'])
 
-# --- 1. MIPANGILIO YA SHULE ---
-if page == "⚙️ Mipangilio ya Shule":
-    st.subheader("Usimamizi wa Vichwa vya Habari (Headers)")
-    st.session_state.school_info["council"] = st.text_input("Halmashauri / Wilaya (DISTRICT COUNCIL):", st.session_state.school_info["council"])
-    st.session_state.school_info["region"] = st.text_input("Mkoa (REGION):", st.session_state.school_info["region"])
-    st.session_state.school_info["school"] = st.text_input("Jina la Shule (SCHOOL NAME):", st.session_state.school_info["school"])
-    st.session_state.school_info["exam_title"] = st.text_input("Jina la Mtihani (EXAM TITLE):", st.session_state.school_info["exam_title"])
-    st.success("Mipangilio imehifadhiwa!")
+col_add1, col_add2 = st.columns([3, 1])
+with col_add1:
+    idadi = st.number_input("Idadi ya wanafunzi unaotaka kuwaongeza kwa mkupuo:", min_value=1, value=5, step=1)
+with col_add2:
+    if st.button("Tengeneza Nafasi za Wanafunzi"):
+        nyongeza = pd.DataFrame(index=range(idadi), columns=['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'])
+        # Weka mpangilio wa Namba za Usajili kiotomatiki
+        kuanzia = len(st.session_state.data_wanafunzi) + 1
+        nyongeza['Namba ya Usajili'] = [f"{namba_shule}/{str(i).zfill(4)}" for i in range(kuanzia, kuanzia + idadi)]
+        nyongeza['Jinsia (M/F)'] = 'F' # Default gender
+        st.session_state.data_wanafunzi = pd.concat([st.session_state.data_wanafunzi, nyongeza], ignore_index=True)
 
-# --- 2. SAJILI WANAFUNZI & MASOMO ---
-elif page == "📝 Sajili Wanafunzi & Masomo":
-    st.subheader("Sajili Wanafunzi na Chagua Masomo Wanayosoma")
+# Tengeneza nguzo (columns) za alama za masomo yaliyochaguliwa (Majaribio 30% na Mtihani 70%)
+safu_za_kuhariri = ['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili']
+for somo in masomo_yaliyosajiliwa:
+    safu_za_kuhariri.append(f"{somo} (30%)")
+    safu_za_kuhariri.append(f"{somo} (70%)")
+
+# Hakikisha dataframe ina nguzo zote zinazohitajika
+for col in safu_za_kuhariri:
+    if col not in st.session_state.data_wanafunzi.columns:
+        st.session_state.data_wanafunzi[col] = np.nan
+
+# Jedwali la kuingizia alama (Data Editor)
+df_inayohaririwa = st.data_editor(
+    st.session_state.data_wanafunzi[safu_za_kuhariri],
+    num_rows="dynamic",
+    use_container_width=True
+)
+
+if st.button("Hifadhi na Uchakate Matokeo kwa Ujumla"):
+    st.session_state.data_wanafunzi = df_inayohaririwa.copy()
     
-    with st.form("reg_form", clear_on_submit=True):
-        sn = st.text_input("Namba ya Mwanafunzi (S/N):")
-        name = st.text_input("Majina Kamili (NAME):")
-        sex = st.selectbox("Jinsia (SEX):", ["M", "F"])
-        chosen_subs = st.multiselect("Chagua Masomo anayosoma mwanafunzi huyu:", ALL_SUBJECTS, default=ALL_SUBJECTS)
-        submitted = st.form_submit_button("Sajili Mwanafunzi")
-        
-        if submitted and sn and name:
-            new_stud = pd.DataFrame([[sn, name.upper(), sex]], columns=['S/N', 'NAME', 'SEX'])
-            st.session_state.students = pd.concat([st.session_state.students, new_stud], ignore_index=True)
-            st.session_state.registered_subjects[sn] = chosen_subs
-            st.success(f"{name.upper()} amesajiliwa na masomo yake!")
-
-    st.write("### Orodha ya Wanafunzi Waliosajiliwa")
-    st.dataframe(st.session_state.students, use_container_width=True)
-
-# --- 3. INGIZA ALAMA (MAJARIBIO) ---
-elif page == "📊 Ingiza Alama (Majaribio)":
-    st.subheader("Jaza Alama za Majaribio / Test (Asilimia 100)")
-    if st.session_state.students.empty:
-        st.warning("Tafadhali sajili wanafunzi kwanza.")
-    else:
-        if st.session_state.test_marks.empty or len(st.session_state.test_marks) != len(st.session_state.students):
-            st.session_state.test_marks = st.session_state.students[['S/N', 'NAME', 'SEX']].copy()
-            for sub in ALL_SUBJECTS: st.session_state.test_marks[sub] = np.nan
-        
-        st.write("Ingiza alama hapa chini (Majaribio):")
-        edited_test = st.data_editor(st.session_state.test_marks, use_container_width=True)
-        if st.button("Hifadhi Alama za Majaribio"):
-            st.session_state.test_marks = edited_test
-            st.success("Alama za Majaribio zimehifadhiwa!")
-
-# --- 4. INGIZA ALAMA (MITIHANI) ---
-elif page == "✍️ Ingiza Alama (Mitihani)":
-    st.subheader("Jaza Alama za Mitihani Kuu / NECTA Format (Asilimia 100)")
-    if st.session_state.students.empty:
-        st.warning("Tafadhali sajili wanafunzi kwanza.")
-    else:
-        if st.session_state.exam_marks.empty or len(st.session_state.exam_marks) != len(st.session_state.students):
-            st.session_state.exam_marks = st.session_state.students[['S/N', 'NAME', 'SEX']].copy()
-            for sub in ALL_SUBJECTS: st.session_state.exam_marks[sub] = np.nan
-        
-        st.write("Ingiza alama hapa chini (Mitihani):")
-        edited_exam = st.data_editor(st.session_state.exam_marks, use_container_width=True)
-        if st.button("Hifadhi Alama za Mitihani"):
-            st.session_state.exam_marks = edited_exam
-            st.success("Alama za Mitihani zimehifadhiwa!")
-
-# --- 5. RIPOTI YA MATOKEO YA NECTA ---
-elif page == "📋 Ripoti ya Matokeo ya NECTA":
-    info = st.session_state.school_info
-    st.markdown(f"<h3 style='text-align: center;'>{info['council']}</h3>", unsafe_allow_html=True)
-    st.markdown(f"<h4 style='text-align: center;'>{info['school']} ({info['region']})</h4>", unsafe_allow_html=True)
-    st.markdown(f"<h5 style='text-align: center;'>{info['exam_title']}</h5>", unsafe_allow_html=True)
+    df_matokeo = df_inayohaririwa.copy()
     
-    if st.session_state.exam_marks.empty or st.session_state.test_marks.empty:
-        st.warning("Hakuna alama zilizopatikana kwenye Majaribio au Mitihani.")
-    else:
-        # Piga wastani: 30% Test + 70% Exam
-        final_df = st.session_state.students[['S/N', 'NAME', 'SEX']].copy()
+    # Kufuta safu zisizo na majina kabla ya kuchakata
+    df_matokeo = df_matokeo.dropna(subset=['Jina la Mwanafunzi'])
+    
+    if not df_matokeo.empty:
+        orodha_ya_ripoti = []
         
-        total_points_list = []
-        division_list = []
+        # Kamusi (dictionary) kwa ajili ya kukusanya summary ya kila somo
+        summary_masomo = {somo: {'A': 0, 'B': 0, 'C': 0, 'D': 0, 'F': 0, 'Jumla_Alama': 0.0, 'Wanafunzi_Wanaosoma': 0} for somo in masomo_yaliyosajiliwa}
         
-        for index, row in final_df.iterrows():
-            sn = row['S/N']
-            allowed_subs = st.session_state.registered_subjects.get(sn, ALL_SUBJECTS)
-            student_points = []
+        # Uchakataji wa mwanafunzi mmoja mmoja
+        for idx, mwanafunzi in df_matokeo.iterrows():
+            taarifa_mwanafunzi = {
+                'S/N': idx + 1,
+                'NAME OF CANDIDATE': mwanafunzi['Jina la Mwanafunzi'],
+                'SEX': mwanafunzi['Jinsia (M/F)'],
+                'INDEX NO': mwanafunzi['Namba ya Usajili']
+            }
             
-            for sub in ALL_SUBJECTS:
-                if sub in allowed_subs:
-                    t_mark = st.session_state.test_marks.loc[st.session_state.test_marks['S/N'] == sn, sub].values[0]
-                    e_mark = st.session_state.exam_marks.loc[st.session_state.exam_marks['S/N'] == sn, sub].values[0]
-                    
-                    # Kama alama hazikujazwa, weka 0 au chukulia iliyopo
-                    t_mark = float(t_mark) if not pd.isna(t_mark) else 0
-                    e_mark = float(e_mark) if not pd.isna(e_mark) else 0
-                    
-                    # Fomula ya wastani wa jumla ya muhula: (Test*0.3) + (Exam*0.7)
-                    final_score = (t_mark * 0.3) + (e_mark * 0.7)
-                    grade = calculate_grade(final_score)
-                    
-                    final_df.at[index, sub] = round(final_score, 1)
-                    final_df.at[index, f"{sub}_GD"] = grade
-                    
-                    pts = grade_points(grade)
-                    if pts > 0: student_points.append(pts)
-                else:
-                    final_df.at[index, sub] = "-"
-                    final_df.at[index, f"{sub}_GD"] = "-"
+            pointi_za_masomo = []
+            jumla_ya_alama_zote = 0.0
+            masomo_yaliyofanywa_hesabu = 0
             
-            student_points.sort()
-            top_7 = sum(student_points[:7])
-            subs_count = len(student_points)
+            for somo in masomo_yaliyosajiliwa:
+                try:
+                    cwt = float(mwanafunzi.get(f"{somo} (30%)", 0)) if not pd.isna(mwanafunzi.get(f"{somo} (30%)")) else 0.0
+                    eet = float(mwanafunzi.get(f"{somo} (70%)", 0)) if not pd.isna(mwanafunzi.get(f"{somo} (70%)")) else 0.0
+                    
+                    # Kama nguzo zote mbili zipo tupu, mwanafunzi hasomi somo hili
+                    if pd.isna(mwanafunzi.get(f"{somo} (30%)")) and pd.isna(mwanafunzi.get(f"{somo} (70%)")):
+                        taarifa_mwanafunzi[f"{somo} MK"] = "-"
+                        taarifa_mwanafunzi[f"{somo} GR"] = "-"
+                        continue
+                        
+                    wastani_somo = round(cwt + eet, 1)
+                    daraja, pointi = calculate_grade_and_points(wastani_somo)
+                    
+                    taarifa_mwanafunzi[f"{somo} MK"] = wastani_somo
+                    taarifa_mwanafunzi[f"{somo} GR"] = daraja
+                    
+                    if daraja:
+                        pointi_za_masomo.append(pointi)
+                        jumla_ya_alama_zote += wastani_somo
+                        masomo_yaliyofanywa_hesabu += 1
+                        
+                        # Ongeza kwenye takwimu za summary ya masomo
+                        summary_masomo[somo][daraja] += 1
+                        summary_masomo[somo]['Jumla_Alama'] += wastani_somo
+                        summary_masomo[somo]['Wanafunzi_Wanaosoma'] += 1
+                        
+                except Exception:
+                    taarifa_mwanafunzi[f"{somo} MK"] = "-"
+                    taarifa_mwanafunzi[f"{somo} GR"] = "-"
             
-            total_points_list.append(top_7 if subs_count >= 7 else np.nan)
-            division_list.append(calculate_division(top_7, subs_count))
+            # Hesabu ya Pointi, Wastani wa Mwanafunzi, Division na GPA yake
+            if len(pointi_za_masomo) >= 7:
+                pointi_za_masomo.sort()
+                pointi_saba_bora = sum(pointi_za_masomo[:7])
+                gpa_mwanafunzi = round(sum(pointi_za_masomo) / len(pointi_za_masomo), 4)
+                div = calculate_division(pointi_saba_bora, len(pointi_za_masomo))
+            else:
+                pointi_saba_bora = sum(pointi_za_masomo) if pointi_za_masomo else 0
+                gpa_mwanafunzi = round(sum(pointi_za_masomo) / len(pointi_za_masomo), 4) if pointi_za_masomo else 5.0
+                div = 'IV' if len(pointi_za_masomo) > 0 else '0'
+                
+            taarifa_mwanafunzi['TOTAL MARKS'] = round(jumla_ya_alama_zote, 2)
+            taarifa_mwanafunzi['AVG'] = round(jumla_ya_alama_zote / masomo_yaliyofanywa_hesabu, 1) if masomo_yaliyofanywa_hesabu > 0 else 0
+            taarifa_mwanafunzi['POINTS'] = pointi_saba_bora
+            taarifa_mwanafunzi['DIV'] = div
+            taarifa_mwanafunzi['GPA'] = gpa_mwanafunzi
             
-        final_df['TOTAL POINTS'] = total_points_list
-        final_df['DIVISION'] = division_list
+            orodha_ya_ripoti.append(taarifa_mwanafunzi)
+            
+        df_ripoti_kamili = pd.DataFrame(orodha_ya_ripoti)
         
-        st.dataframe(final_df, use_container_width=True)
+        # Panga wanafunzi kulingana na ufaulu wao (kwanza kwa Division, kisha kwa pointi ndogo, na mwisho kwa wastani mkubwa)
+        if 'POINTS' in df_ripoti_kamili.columns:
+            df_ripoti_kamili = df_ripoti_kamili.sort_values(by=['DIV', 'POINTS', 'AVG'], ascending=[True, True, False]).reset_drop_index(drop=True)
+            df_ripoti_kamili['POSITION'] = df_ripoti_kamili.index + 1
+            
+        # --- SEHEMU YA KUCHAPA RIPOTI ---
+        st.markdown(f"<h3 style='text-align: center;'>{wilaya}</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h4 style='text-align: center;'>{shule} - kituo NO: {namba_shule}</h4>", unsafe_allow_html=True)
+        st.markdown(f"<h4 style='text-align: center;'>{aina_mtihani}, {mwaka}</h4>", unsafe_allow_html=True)
         
-        # DOWNLOAD BUTTON
-        csv = final_df.to_csv(index=False).encode('utf-8')
+        st.subheader("JEDWALI LA MATOKEO YA WANAFUNZI")
+        st.dataframe(df_ripoti_kamili, use_container_width=True)
+        
+        # --- KIPENGELE KIPYA: SUMMARY YA MASOMO (SUBJECT PERFORMANCE SUMMARY) ---
+        st.write("---")
+        st.subheader("SUMMARY YA UFAULU WA MASOMO (SUBJECT PERFORMANCE SUMMARY)")
+        
+        rows_summary = []
+        sn_somo = 1
+        for somo, takwimu in summary_masomo.items():
+            wanafunzi_waliopo = takwimu['Wanafunzi_Wanaosoma']
+            if wanafunzi_waliopo > 0:
+                wastani_wa_somo = round(takwimu['Jumla_Alama'] / wanafunzi_waliopo, 1)
+                
+                # Uhesabuji wa GPA ya Somo (Jumla ya pointi za madaraja / idadi ya wanafunzi)
+                jumla_ya_pointi_za_somo = (takwimu['A']*1) + (takwimu['B']*2) + (takwimu['C']*3) + (takwimu['D']*4) + (takwimu['F']*5)
+                gpa_somo = round(jumla_ya_pointi_za_somo / wanafunzi_waliopo, 4)
+                
+                # Kutafuta Daraja la Somo kutokana na GPA
+                if gpa_somo >= 1.0 and gpa_somo < 2.0: daraja_somo = 'A'
+                elif gpa_somo < 3.0: daraja_somo = 'B'
+                elif gpa_somo < 4.0: daraja_somo = 'C'
+                elif gpa_somo < 4.8: daraja_somo = 'D'
+                else: daraja_somo = 'F'
+                
+                kufaulu = takwimu['A'] + takwimu['B'] + takwimu['C'] + takwimu['D']
+                kufeli = takwimu['F']
+                
+                rows_summary.append({
+                    'S/N': sn_somo,
+                    'SUBJECT NAME': somo,
+                    'A': takwimu['A'],
+                    'B': takwimu['B'],
+                    'C': takwimu['C'],
+                    'D': takwimu['D'],
+                    'F': takwimu['F'],
+                    'TOTAL REG': wanafunzi_waliopo,
+                    'AVG MARKS': wastani_wa_somo,
+                    'GRADE': daraja_somo,
+                    'GPA': gpa_somo,
+                    'PASS': kufaulu,
+                    'FAIL': kufeli
+                })
+                sn_somo += 1
+                
+        df_summary_masomo = pd.DataFrame(rows_summary)
+        
+        # Kupanga masomo kwa nafasi (Rank) kulingana na ufaulu wa GPA yao (ndogo ndio ya kwanza)
+        if not df_summary_masomo.empty:
+            df_summary_masomo = df_summary_masomo.sort_values(by='GPA', ascending=True).reset_index(drop=True)
+            df_summary_masomo['RANK'] = df_summary_masomo.index + 1
+            # Kupanga upya nguzo ili S/N zifuate mtiririko sahihi wa nafasi zao
+            df_summary_masomo['S/N'] = df_summary_masomo.index + 1
+            
+            st.dataframe(df_summary_masomo, use_container_width=True)
+        else:
+            st.info("Hakuna data ya kutosha kuzalisha summary ya masomo.")
+            
+        # 6. Vifungo vya kupakua ripoti (Download Buttons)
+        st.write("---")
+        csv_kamili = df_ripoti_kamili.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="📥 Pakua Ripoti Kamili (Excel / CSV)",
-            data=csv,
-            file_name=f"Matokeo_{info['school'].replace(' ', '_')}.csv",
+            label="Pakua Ripoti Kamili (Excel / CSV)",
+            data=csv_kamili,
+            file_name=f"Matokeo_{shule}_{mwaka}.csv",
             mime="text/csv"
-        )
+                )
