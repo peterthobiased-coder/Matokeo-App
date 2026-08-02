@@ -7,7 +7,10 @@ st.set_page_config(page_title="School Results & Report System", layout="wide")
 # Mfumo wa Grading wa NECTA (O-Level)
 def calculate_grade(score):
     if pd.isna(score) or score == "": return "-"
-    score = float(score)
+    try:
+        score = float(score)
+    except:
+        return "-"
     if score >= 75: return "A"
     elif score >= 65: return "B"
     elif score >= 45: return "C"
@@ -27,8 +30,8 @@ def calculate_division(total_points, subjects_counted):
     elif total_points <= 29: return "IV"
     else: return "0"
 
-# Hifadhi ya Data ya Muda (Session State)
-if 'students' not in st.state:
+# Hifadhi ya Data ya Muda (Session State) - IMEFAKISHWA HAPA
+if 'students' not in st.session_state:
     st.session_state.students = pd.DataFrame(columns=['S/N', 'NAME', 'SEX'])
 if 'marks' not in st.session_state:
     st.session_state.marks = pd.DataFrame()
@@ -72,11 +75,11 @@ elif page == "Jaza Mitihani":
     else:
         subjects = ["CIVICS", "HISTORY", "GEOGRAPHY", "KISWAHILI", "ENGLISH", "PHYSICS", "CHEMISTRY", "BIOLOGY", "BASIC MATH"]
         
-        # Kutengeneza jedwali la kuingiza alama kama halipo
         if st.session_state.marks.empty or len(st.session_state.marks) != len(st.session_state.students):
             st.session_state.marks = st.session_state.students[['S/N', 'NAME', 'SEX']].copy()
             for sub in subjects:
-                st.session_state.marks[sub] = np.nan
+                if sub not in st.session_state.marks.columns:
+                    st.session_state.marks[sub] = np.nan
         
         st.write("Hariri alama moja kwa moja kwenye jedwali hapa chini:")
         edited_df = st.data_editor(st.session_state.marks, use_container_width=True)
@@ -95,7 +98,6 @@ elif page == "Ripoti ya Matokeo":
         results_df = st.session_state.marks.copy()
         subjects = ["CIVICS", "HISTORY", "GEOGRAPHY", "KISWAHILI", "ENGLISH", "PHYSICS", "CHEMISTRY", "BIOLOGY", "BASIC MATH"]
         
-        # Kupiga hesabu ya Madaraja, Pointi na Division
         total_points_list = []
         division_list = []
         
@@ -106,6 +108,28 @@ elif page == "Ripoti ya Matokeo":
                 results_df.at[index, f"{sub}_GD"] = grade
                 pts = grade_points(grade)
                 if pts > 0:
+                    student_points.append(pts)
+            
+            student_points.sort()
+            top_7_points = sum(student_points[:7])
+            subjects_counted = len(student_points)
+            
+            total_points_list.append(top_7_points if subjects_counted >= 7 else np.nan)
+            division_list.append(calculate_division(top_7_points, subjects_counted))
+            
+        results_df['TOTAL POINTS'] = total_points_list
+        results_df['DIVISION'] = division_list
+        
+        st.dataframe(results_df, use_container_width=True)
+        
+        st.subheader("Pakua Matokeo")
+        csv = results_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="Pakua kama CSV (Excel)",
+            data=csv,
+            file_name="Matokeo_O_Level.csv",
+            mime="text/csv",
+        )                if pts > 0:
                     student_points.append(pts)
             
             # NECTA inachukua masomo 7 bora yenye ufaulu wa juu
