@@ -60,15 +60,33 @@ if 'almar_mitihani' not in st.session_state:
     st.session_state.almar_mitihani = pd.DataFrame()
 
 # ------------------------------------------------------------------
-# Navigation - Menu Kuu
+# UDHIBITI WA MILELE (ACCESS CONTROL)
 # ------------------------------------------------------------------
-st.sidebar.title("MENU KUU")
-chaguo = st.sidebar.radio("Nenda kwenye kipengele:", [
-    "0. Kuhusu Mfumo",
-    "1. Taarifa Binafsi za Mtihani",
-    "2. Usajili wa Masomo ya Shule (Hadi 20)",
-    "3. Sajili Majina ya Wanafunzi",
-    "4. Kumsajilia Mwanafunzi Masomo",
+st.sidebar.title("MIPANGILIO YA MFUMO")
+hali_ya_mtumiaji = st.sidebar.selectbox("Aina ya Mtumiaji:", ["Mwalimu (Jaza Alama Tu)", "Admin (Mkuu wa Shule)"])
+
+is_admin = False
+if hali_ya_mtumiaji == "Admin (Mkuu wa Shule)":
+    pin_ingizwa = st.sidebar.text_input("Ingiza PIN ya Admin:", type="password")
+    if pin_ingizwa == "1234":  # Unaweza kubadili namba hii kuwa PIN yoyote uipendayo
+        is_admin = True
+        st.sidebar.success("Umeingia kama Admin!")
+    elif pin_ingizwa != "":
+        st.sidebar.error("PIN Si Sahihi!")
+
+# Kutengeneza orodha ya menu kulingana na aina ya mtumiaji
+orodha_ya_menu = ["0. Kuhusu Mfumo"]
+
+if is_admin:
+    orodha_ya_menu.extend([
+        "1. Taarifa Binafsi za Mtihani",
+        "2. Usajili wa Masomo ya Shule (Hadi 20)",
+        "3. Sajili Majina ya Wanafunzi",
+        "4. Kumsajilia Mwanafunzi Masomo"
+    ])
+
+# Menu hizi zinaonekana kwa kila mtu (Walimu na Admin)
+orodha_ya_menu.extend([
     "5. Kujaza Alama za Majaribio (100%)",
     "6. Kujaza Alama za Mitihani (100%)",
     "7. Matokeo ya Majaribio Pekee",
@@ -77,6 +95,10 @@ chaguo = st.sidebar.radio("Nenda kwenye kipengele:", [
     "10. Matokeo ya NECTA Format & Summary",
     "11. Ripoti Binafsi ya Mwanafunzi (PDF)"
 ])
+
+st.sidebar.write("---")
+st.sidebar.title("MENU KUU")
+chaguo = st.sidebar.radio("Nenda kwenye kipengele:", orodha_ya_menu)
 
 names_list = st.session_state.wanafunzi_db['Jina la Mwanafunzi'].tolist()
 
@@ -88,17 +110,15 @@ if chaguo == "0. Kuhusu Mfumo":
     st.write("""
     Karibu kwenye mfumo ulioboreshwa wa uchakataji wa matokeo ya mitihani ya kidato cha nne kulingana na muundo wa NECTA.
     
-    ### Mwongozo Mfupi wa Mfumo:
-    *   **Majaribio na Mitihani:** Yote yanajazwa kwa **100%**. Mfumo utatafuta wastani wa jumla kwa kugawanya kwa 2.
-    *   **Gredi na Pointi:** A (75-100, Pt 1), B (65-74, Pt 2), C (45-64, Pt 3), D (30-44, Pt 4), F (0-29, Pt 5).
-    *   **Division:** Inatafutwa kwa kutumia masomo 7 bora. Masomo chini ya 7 yaliyokamilika yatatoa **INC**. Mwanafunzi asiyekuwa na alama yoyote atapewa **ABS**.
-    *   **Ripoti za PDF:** Unaweza kupakua ripoti ya mwanafunzi mmoja mmoja au kupakua ripoti ya shule nzima kwa mara moja ambapo kila mwanafunzi atatengenezewa ukurasa wake mmoja maalum.
+    ### Mwongozo wa Mtumiaji:
+    *   **Walimu:** Chagua hali ya '*Mwalimu (Jaza Alama Tu)*' kwenye menu ya kushoto. Utaweza kuona sehemu za kujaza alama (Namba 5 na 6) na kuona/kupakua ripoti za matokeo. Huwezi kubadilisha jina la shule, masomo wala majina ya wanafunzi waliosajiliwa.
+    *   **Admin:** Ingiza PIN sahihi ili kufungua menu za usajili wa shule, masomo, na wanafunzi.
     """)
 
 # ------------------------------------------------------------------
-# KIPENGELE 1: TAARIFA BINAFSI ZA MTIHANI
+# KIPENGELE 1: TAARIFA BINAFSI ZA MTIHANI (ADMIN ONLY)
 # ------------------------------------------------------------------
-elif chaguo == "1. Taarifa Binafsi za Mtihani":
+elif chaguo == "1. Taarifa Binafsi za Mtihani" and is_admin:
     st.header("1. Taarifa Binafsi za Shule na Mtihani")
     st.session_state.shule_info["wizara"] = st.text_input("Wizara", st.session_state.shule_info["wizara"])
     st.session_state.shule_info["mkoa"] = st.text_input("Mkoa", st.session_state.shule_info["mkoa"])
@@ -116,9 +136,9 @@ elif chaguo == "1. Taarifa Binafsi za Mtihani":
     st.success("Taarifa zote zimehifadhiwa kwa usalama!")
 
 # ------------------------------------------------------------------
-# KIPENGELE 2: USAJILI WA MASOMO YA SHULE (HADI 20)
+# KIPENGELE 2: USAJILI WA MASOMO YA SHULE (ADMIN ONLY)
 # ------------------------------------------------------------------
-elif chaguo == "2. Usajili wa Masomo ya Shule (Hadi 20)":
+elif chaguo == "2. Usajili wa Masomo ya Shule (Hadi 20)" and is_admin:
     st.header("2. Usajili na Uhariri wa Masomo (Hadi Masomo 20)")
     
     masomo_maandishi = st.text_area("Ingiza masomo yote yakitenganishwa kwa alama ya mkato (,):", ", ".join(st.session_state.masomo_shule))
@@ -133,9 +153,9 @@ elif chaguo == "2. Usajili wa Masomo ya Shule (Hadi 20)":
     st.write("Orodha ya masomo kwa sasa:", st.session_state.masomo_shule)
 
 # ------------------------------------------------------------------
-# KIPENGELE 3: SAJILI MAJINA YA WANAFUNZI
+# KIPENGELE 3: SAJILI MAJINA YA WANAFUNZI (ADMIN ONLY)
 # ------------------------------------------------------------------
-elif chaguo == "3. Sajili Majina ya Wanafunzi":
+elif chaguo == "3. Sajili Majina ya Wanafunzi" and is_admin:
     st.header("3. Sajili Majina ya Wanafunzi (Mbinu Mbili)")
     
     tab1, tab2 = st.tabs(["Njia ya 1: Sajili Moja kwa Moja (Fomu)", "Njia ya 2: Kupandisha Excel File"])
@@ -154,7 +174,7 @@ elif chaguo == "3. Sajili Majina ya Wanafunzi":
                 st.rerun()
 
     with tab2:
-        st.subheader("Pakua Template na Upandishe Excel")
+        st.subheader("Pakua Template nicotine na Upandishe Excel")
         col_a, col_b = st.columns(2)
         with col_a:
             df_temp = pd.DataFrame(columns=['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'])
@@ -181,9 +201,9 @@ elif chaguo == "3. Sajili Majina ya Wanafunzi":
     st.dataframe(st.session_state.wanafunzi_db, use_container_width=True)
 
 # ------------------------------------------------------------------
-# KIPENGELE 4: KUMSAJILIA MWANAFUNZI MASOMO
+# KIPENGELE 4: KUMSAJILIA MWANAFUNZI MASOMO (ADMIN ONLY)
 # ------------------------------------------------------------------
-elif chaguo == "4. Kumsajilia Mwanafunzi Masomo":
+elif chaguo == "4. Kumsajilia Mwanafunzi Masomo" and is_admin:
     st.header("4. Kumsajilia Mwanafunzi Masomo Yake Maalum")
     if len(names_list) == 0:
         st.warning("Tafadhali sajili majina kwanza kwenye kipengele namba 3.")
@@ -193,10 +213,9 @@ elif chaguo == "4. Kumsajilia Mwanafunzi Masomo":
         with tab_m1:
             st.write("Pakua orodha ya wanafunzi tayari wenye majina yao, kisha weka namba 1 kwa somo mwanafunzi analosoma na 0 kama hasomi.")
             
-            # Tengeneza template ya masomo kulingana na majina yaliyosajiliwa tayari
             df_masomo_temp = st.session_state.wanafunzi_db.copy()
             for somo in st.session_state.masomo_shule:
-                df_masomo_temp[somo] = 1 # Weka 1 kama default
+                df_masomo_temp[somo] = 1
                 
             out_m = io.BytesIO()
             with pd.ExcelWriter(out_m, engine='xlsxwriter') as writer:
@@ -230,12 +249,12 @@ elif chaguo == "4. Kumsajilia Mwanafunzi Masomo":
                 st.success(f"Masomo ya {mwanafunzi_sel} yamehifadhiwa!")
 
 # ------------------------------------------------------------------
-# KIPENGELE 5: KUJAZA ALAMA ZA MAJARIBIO (100%)
+# KIPENGELE 5: KUJAZA ALAMA ZA MAJARIBIO (100%) - WALIMU NA ADMIN
 # ------------------------------------------------------------------
 elif chaguo == "5. Kujaza Alama za Majaribio (100%)":
     st.header("5. Kujaza Alama za Majaribio (Upeo 100%)")
     if len(names_list) == 0:
-        st.warning("Sajili majina kwanza.")
+        st.warning("Hakuna wanafunzi waliosajiliwa kwenye mfumo kwa sasa.")
     else:
         cols = ['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'] + [f"{s} (100%)" for s in st.session_state.masomo_shule]
         if st.session_state.almar_majaribio.empty or not all(c in st.session_state.almar_majaribio.columns for c in cols):
@@ -250,12 +269,12 @@ elif chaguo == "5. Kujaza Alama za Majaribio (100%)":
             st.success("Alama za majaribio zimehifadhiwa!")
 
 # ------------------------------------------------------------------
-# KIPENGELE 6: KUJAZA ALAMA ZA MITIHANI (100%)
+# KIPENGELE 6: KUJAZA ALAMA ZA MITIHANI (100%) - WALIMU NA ADMIN
 # ------------------------------------------------------------------
 elif chaguo == "6. Kujaza Alama za Mitihani (100%)":
     st.header("6. Kujaza Alama za Mitihani (Upeo 100%)")
     if len(names_list) == 0:
-        st.warning("Sajili majina kwanza.")
+        st.warning("Hakuna wanafunzi waliosajiliwa kwenye mfumo kwa sasa.")
     else:
         cols = ['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'] + [f"{s} (100%)" for s in st.session_state.masomo_shule]
         if st.session_state.almar_mitihani.empty or not all(c in st.session_state.almar_mitihani.columns for c in cols):
@@ -351,7 +370,6 @@ elif chaguo == "10. Matokeo ya NECTA Format & Summary":
                 cwt_val = float(cwt) if not pd.isna(cwt) else 0.0
                 eet_val = float(eet) if not pd.isna(eet) else 0.0
                 
-                # Wastani unagawanywa kwa 2
                 wastani = round((cwt_val + eet_val) / 2, 1)
                 daraja, pointi = calculate_grade_and_points(wastani)
                 
@@ -366,7 +384,6 @@ elif chaguo == "10. Matokeo ya NECTA Format & Summary":
                     summary_masomo[somo]['Alama'] += wastani
                     summary_masomo[somo]['Wanafunzi'] += 1
 
-            # Kokotoa Division kwa Vigezo Vipya
             div = calculate_division(0, masomo_yaliyofanywa, total_registered)
             if div not in ['INC', 'ABS']:
                 pointi_za_masomo.sort()
@@ -396,7 +413,7 @@ elif chaguo == "10. Matokeo ya NECTA Format & Summary":
 
         st.dataframe(df_final, use_container_width=True)
         
-        # SUMMARY YA MASOMO
+        # SUMMARY YA UAFAULU
         st.write("---")
         st.subheader("SUMMARY YA UFAULU WA MASOMO")
         rows_summary = []
@@ -431,7 +448,6 @@ elif chaguo == "11. Ripoti Binafsi ya Mwanafunzi (PDF)":
     else:
         info = st.session_state.shule_info
         
-        # Kazi ya kujenga data ya alama za kila mwanafunzi
         def andaa_data_mwanafunzi(idx_mwa, jina_mwa):
             data_somo_pdf = [["Somo", "Majaribio", "Mtihani", "Wastani", "Gredi", "Maelezo (Remarks)"]]
             masomo_yake = st.session_state.masomo_wanafunzi.get(jina_mwa, st.session_state.masomo_shule)
@@ -454,7 +470,6 @@ elif chaguo == "11. Ripoti Binafsi ya Mwanafunzi (PDF)":
                 else:
                     data_somo_pdf.append([somo, "-", "-", "-", "-", "Hajachagua"])
             
-            # Division logic
             div_final = calculate_division(0, len(pointi_list), len(masomo_yake))
             if div_final not in ['INC', 'ABS']:
                 pointi_list.sort()
@@ -528,7 +543,7 @@ elif chaguo == "11. Ripoti Binafsi ya Mwanafunzi (PDF)":
                 
         with col_p2:
             st.subheader("Chaguo B: Pakua Ripoti za Wote kwa Mara Moja")
-            st.write("Bonyeza kitufe kilicho chini ili kuzalisha faili kubwa la PDF ambalo lina ripoti za wanafunzi wote shuleni. Kila mwanafunzi atakuwa na ukurasa wake mmoja (1 page per student).")
+            st.write("Bonyeza kitufe kilicho chini ili kuzalisha faili kubwa la PDF ambalo lina ripoti za wanafunzi wote shuleni.")
             
             if st.button("Tengeneza PDF ya Shule Nzima"):
                 buffer_all = io.BytesIO()
@@ -571,7 +586,6 @@ elif chaguo == "11. Ripoti Binafsi ya Mwanafunzi (PDF)":
                     tsaini.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER')]))
                     story_all.append(tsaini)
                     
-                    # Kama sio mwanafunzi wa mwisho, weka PageBreak ili anayefuata aende ukurasa mpya
                     if idx_all < len(names_list) - 1:
                         story_all.append(PageBreak())
                         
@@ -583,4 +597,4 @@ elif chaguo == "11. Ripoti Binafsi ya Mwanafunzi (PDF)":
                     data=buffer_all.getvalue(),
                     file_name=f"Ripoti_Kamili_Wanafunzi_Wote.pdf",
                     mime="application/pdf"
-    )
+                )
