@@ -30,7 +30,7 @@ def calculate_division(total_points, subjects_counted):
     elif total_points <= 29: return "IV"
     else: return "0"
 
-# Hifadhi ya Data ya Muda (Session State) - IMEFAKISHWA HAPA
+# Hifadhi ya Data ya Muda (Session State)
 if 'students' not in st.session_state:
     st.session_state.students = pd.DataFrame(columns=['S/N', 'NAME', 'SEX'])
 if 'marks' not in st.session_state:
@@ -122,30 +122,6 @@ elif page == "Ripoti ya Matokeo":
         
         st.dataframe(results_df, use_container_width=True)
         
-        st.subheader("Pakua Matokeo")
-        csv = results_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="Pakua kama CSV (Excel)",
-            data=csv,
-            file_name="Matokeo_O_Level.csv",
-            mime="text/csv",
-        )                if pts > 0:
-                    student_points.append(pts)
-            
-            # NECTA inachukua masomo 7 bora yenye ufaulu wa juu
-            student_points.sort()
-            top_7_points = sum(student_points[:7])
-            subjects_counted = len(student_points)
-            
-            total_points_list.append(top_7_points if subjects_counted >= 7 else np.nan)
-            division_list.append(calculate_division(top_7_points, subjects_counted))
-            
-        results_df['TOTAL POINTS'] = total_points_list
-        results_df['DIVISION'] = division_list
-        
-        st.dataframe(results_df, use_container_width=True)
-        
-        # Kupakua faili la Excel
         st.subheader("Pakua Matokeo")
         csv = results_df.to_csv(index=False).encode('utf-8')
         st.download_button(
