@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import io
 from reportlab.lib.pagesizes import letter, landscape
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
@@ -64,7 +64,7 @@ if f'shule_info_{darasa_id}' not in st.session_state:
     }
 
 if f'masomo_shule_{darasa_id}' not in st.session_state:
-    st.session_state[f'masomo_shule_{darasa_id}'] = ['HISTORY', 'GEOGRAPHY', 'KISWAHILI', 'ENGLISH LANGUAGE', 'PHYSICS', 'CHEMISTRY', 'BIOLOGY', 'BASIC MATHEMATICS', 'COMPUTER SCIENCE']
+    st.session_state[f'masomo_shule_{darasa_id}'] = ['HISTORY', 'GEOGRAPHY', 'KISWAHILI', 'ENGLISH LANGUAGE', 'PHYSICS', 'CHEMISTRY', 'BIOLOGY', 'BASIC MATHEMATICS', 'IT SUPPORT SERVICES']
 
 if f'remarks_dict_{darasa_id}' not in st.session_state:
     st.session_state[f'remarks_dict_{darasa_id}'] = {'A': 'Bora Sana', 'B': 'Bora', 'C': 'Vizuri', 'D': 'Inaridhisha', 'F': 'Imefeli'}
@@ -80,6 +80,10 @@ if f'alama_majaribio_db_{darasa_id}' not in st.session_state:
 
 if f'alama_mitihani_db_{darasa_id}' not in st.session_state:
     st.session_state[f'alama_mitihani_db_{darasa_id}'] = pd.DataFrame(columns=['Jina la Mwanafunzi', 'Somo', 'Alama'])
+
+# Hali ya kufunga mfumo ili kuzuia mabadiliko ya alama
+if f'mfumo_umefungwa_{darasa_id}' not in st.session_state:
+    st.session_state[f'mfumo_umefungwa_{darasa_id}'] = False
 
 shule_info = st.session_state[f'shule_info_{darasa_id}']
 masomo_shule = st.session_state[f'masomo_shule_{darasa_id}']
@@ -117,6 +121,21 @@ if hali_ya_mtumiaji == "Admin (Mkuu wa Shule)":
     if pin_ingizwa == "1234":
         is_admin = True
         st.sidebar.success(f"Umeingia kama Admin ({kidato_kilichochaguliwa})")
+        
+        # Kidhibiti cha Kufunga/Kufungua Alama kwenye Sidebar kwa Admin
+        st.sidebar.write("---")
+        st.sidebar.subheader("Usimamizi wa Kufunga Alama")
+        hali_ya_sasa = st.session_state[f'mfumo_umefungwa_{darasa_id}']
+        if hali_ya_sasa:
+            st.sidebar.error("🔒 Alama Zimefungwa Rasmi!")
+            if st.sidebar.button("Fungua Alama (Unlock)"):
+                st.session_state[f'mfumo_umefungwa_{darasa_id}'] = False
+                st.rerun()
+        else:
+            st.sidebar.success("🔓 Alama ziko wazi.")
+            if st.sidebar.button("Funga Alama Rasmi (Lock)"):
+                st.session_state[f'mfumo_umefungwa_{darasa_id}'] = True
+                st.rerun()
     elif pin_ingizwa != "":
         st.sidebar.error("PIN Si Sahihi!")
 
@@ -147,6 +166,10 @@ names_list = wanafunzi_db['Jina la Mwanafunzi'].tolist()
 if chaguo == "0. Kuhusu Mfumo":
     st.header(f"Mfumo wa Kuchakata Matokeo - {kidato_kilichochaguliwa}")
     st.info(f"Hivi sasa unashughulikia data za darasa la: **{kidato_kilichochaguliwa}** kwenye mfumo wa matokeo.app.")
+    if st.session_state[f'mfumo_umefungwa_{darasa_id}']:
+        st.error("Hali ya Mfumo: Alama zimefungwa na haziruhusiwi kubadilishwa.")
+    else:
+        st.success("Hali ya Mfumo: Alama ziko wazi kwa ajili ya kuingizwa na kuhaririwa.")
 
 # KIPENGELE 1
 elif chaguo == "1. Taarifa za Shule na Mtihani" and is_admin:
@@ -219,11 +242,16 @@ elif chaguo == "4. Kumsajilia Mwanafunzi Masomo" and is_admin:
     else:
         st.warning("Weka wanafunzi kwanza.")
 
-# KIPENGELE 5 & 6
+# KIPENGELE 5 & 6 (ZIMEUNGANISHWA NA UDHIBITI WA KUFUNGA MFUMO)
 elif chaguo in ["5. Kujaza Alama za Majaribio (100%)", "6. Kujaza Alama za Mitihani (100%)"]:
     is_majaribio = "Majaribio" in chaguo
     db_key = f'alama_majaribio_db_{darasa_id}' if is_majaribio else f'alama_mitihani_db_{darasa_id}'
     st.header(f"Kujaza Alama za { 'Majaribio' if is_majaribio else 'Mitihani' }")
+    
+    mfumo_umefungwa = st.session_state.get(f'mfumo_umefungwa_{darasa_id}', False)
+    
+    if mfumo_umefungwa:
+        st.error("🔒 Samahani, matokeo yameshafungwa na Mkuu wa Schule (Admin). Huwezi kubadilisha au kuongeza alama tena.")
     
     if names_list:
         somo_sel = st.selectbox("Chagua Somo:", masomo_shule)
@@ -238,19 +266,27 @@ elif chaguo in ["5. Kujaza Alama za Majaribio (100%)", "6. Kujaza Alama za Mitih
             rows_to_edit.append({'S/N': idx + 1, 'Jina la Mwanafunzi': jina, 'Jinsia (M/F)': m_info['Jinsia (M/F)'], 'Namba ya Usajili': m_info['Namba ya Usajili'], 'Alama (100%)': alama_iliyopo})
         
         df_editor = pd.DataFrame(rows_to_edit)
-        edited_df = st.data_editor(df_editor, use_container_width=True, disabled=['S/N', 'Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'], hide_index=True)
         
-        if st.button(f"Hifadhi Alama za {somo_sel}"):
-            temp_db = current_db[current_db['Somo'] != somo_sel].copy()
-            new_rows = []
-            for _, r in edited_df.iterrows():
-                val = r['Alama (100%)']
-                if pd.notna(val) and str(val).strip() != "":
-                    new_rows.append({'Jina la Mwanafunzi': r['Jina la Mwanafunzi'], 'Somo': somo_sel, 'Alama': float(val)})
-            if new_rows:
-                temp_db = pd.concat([temp_db, pd.DataFrame(new_rows)], ignore_index=True)
-            st.session_state[db_key] = temp_db
-            st.success("🎉 Alama zimehifadhiwa kikamilifu!")
+        # Kama mfumo umefungwa, data_editor inakuwa disabled kabisa
+        edited_df = st.data_editor(
+            df_editor, 
+            use_container_width=True, 
+            disabled=True if mfumo_umefungwa else ['S/N', 'Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'], 
+            hide_index=True
+        )
+        
+        if not mfumo_umefungwa:
+            if st.button(f"Hifadhi Alama za {somo_sel}"):
+                temp_db = current_db[current_db['Somo'] != somo_sel].copy()
+                new_rows = []
+                for _, r in edited_df.iterrows():
+                    val = r['Alama (100%)']
+                    if pd.notna(val) and str(val).strip() != "":
+                        new_rows.append({'Jina la Mwanafunzi': r['Jina la Mwanafunzi'], 'Somo': somo_sel, 'Alama': float(val)})
+                if new_rows:
+                    temp_db = pd.concat([temp_db, pd.DataFrame(new_rows)], ignore_index=True)
+                st.session_state[db_key] = temp_db
+                st.success("🎉 Alama zimehifadhiwa kikamilifu!")
 
 # KIPENGELE 7
 elif chaguo == "7. Wastani wa Majaribio & Mitihani":
@@ -273,13 +309,12 @@ elif chaguo == "7. Wastani wa Majaribio & Mitihani":
     if rows_avg:
         st.dataframe(pd.DataFrame(rows_avg), use_container_width=True, hide_index=True)
 
-# KIPENGELE 10: NECTA FORMAT & PDF DOWNLOAD (UBORESHAJI MKUBWA)
+# KIPENGELE 10: NECTA FORMAT & PDF DOWNLOAD
 elif chaguo == "10. Matokeo ya NECTA Format & Summary":
     st.header("10. Broadsheet ya Matokeo (NECTA Format)")
     db_maj = st.session_state[f'alama_majaribio_db_{darasa_id}']
     db_mit = st.session_state[f'alama_mitihani_db_{darasa_id}']
     
-    # Chaguo la aina ya matokeo ya kupakua PDF
     pdf_aina_chaguo = st.selectbox("Chagua Aina ya Matokeo ya Kwenye PDF:", ["Matokeo ya Jumla (Wastani wa Majaribio & Mitihani)", "Majaribio Pekee", "Mitihani Pekee"])
     
     if len(names_list) == 0:
@@ -345,7 +380,7 @@ elif chaguo == "10. Matokeo ya NECTA Format & Summary":
                 story.append(Paragraph(shule_info['wizara'], title_style))
                 story.append(Paragraph(shule_info['wilaya'], title_style))
                 story.append(Paragraph(f"{shule_info['shule']} - {shule_info['namba_shule']} ({kidato_kilichochaguliwa})", title_style))
-                story.append(Paragraph(f"AINA YA RIPEOTI: {pdf_aina_chaguo.upper()}", title_style))
+                story.append(Paragraph(f"AINA YA RIPOTI: {pdf_aina_chaguo.upper()}", title_style))
                 story.append(Spacer(1, 15))
                 
                 table_headers = ['S/N', 'INDEX NO', 'CANDIDATE NAME', 'SEX', 'DIV', 'PTS'] + [s[:4].upper() for s in masomo_shule]
