@@ -81,7 +81,6 @@ if f'alama_majaribio_db_{darasa_id}' not in st.session_state:
 if f'alama_mitihani_db_{darasa_id}' not in st.session_state:
     st.session_state[f'alama_mitihani_db_{darasa_id}'] = pd.DataFrame(columns=['Jina la Mwanafunzi', 'Somo', 'Alama'])
 
-# Hali ya kufunga mfumo ili kuzuia mabadiliko ya alama
 if f'mfumo_umefungwa_{darasa_id}' not in st.session_state:
     st.session_state[f'mfumo_umefungwa_{darasa_id}'] = False
 
@@ -122,7 +121,6 @@ if hali_ya_mtumiaji == "Admin (Mkuu wa Shule)":
         is_admin = True
         st.sidebar.success(f"Umeingia kama Admin ({kidato_kilichochaguliwa})")
         
-        # Kidhibiti cha Kufunga/Kufungua Alama kwenye Sidebar kwa Admin
         st.sidebar.write("---")
         st.sidebar.subheader("Usimamizi wa Kufunga Alama")
         hali_ya_sasa = st.session_state[f'mfumo_umefungwa_{darasa_id}']
@@ -218,7 +216,7 @@ elif chaguo == "3. Sajili Majina ya Wanafunzi" and is_admin:
                 st.success(f"🎉 {mpya_jina} amesajiliwa!")
                 st.rerun()
     with tab2:
-        uploaded_file = st.file_uploader("Pandisha Excel (.xlsx):", type=["xlsx"])
+        uploaded_file = st.file_uploader("Pandisha Excel ya Wanafunzi (.xlsx):", type=["xlsx"])
         if uploaded_file is not None:
             df_up = pd.read_excel(uploaded_file)
             df_up.columns = [str(c).strip() for c in df_up.columns]
@@ -230,17 +228,66 @@ elif chaguo == "3. Sajili Majina ya Wanafunzi" and is_admin:
     st.write("---")
     st.dataframe(wanafunzi_db, use_container_width=True, hide_index=True)
 
-# KIPENGELE 4
+# KIPENGELE 4: KIMERUDISHWA (Usajili wa Masomo kwa Mmoja-mmoja na kwa Excel)
 elif chaguo == "4. Kumsajilia Mwanafunzi Masomo" and is_admin:
-    st.header("4. Kusajili Masomo Maalum ya Wanafunzi")
-    if names_list:
-        mwanafunzi_sel = st.selectbox("Chagua Mwanafunzi:", names_list)
-        masomo_yake = st.multiselect(f"Masomo ya {mwanafunzi_sel}:", masomo_shule, default=masomo_wanafunzi.get(mwanafunzi_sel, masomo_shule))
-        if st.button("Hifadhi Masomo"):
-            st.session_state[f'masomo_wanafunzi_{darasa_id}'][mwanafunzi_sel] = masomo_yake
-            st.success("🎉 Masomo yamehifadhiwa!")
-    else:
-        st.warning("Weka wanafunzi kwanza.")
+    st.header("4. Kusajili Masomo ya Wanafunzi")
+    tab_moja, tab_excel = st.tabs(["Kusajili Mmoja-mmoja", "Kusajili kupitia Excel"])
+    
+    with tab_moja:
+        if names_list:
+            mwanafunzi_sel = st.selectbox("Chagua Mwanafunzi:", names_list)
+            masomo_yake = st.multiselect(f"Masomo ya {mwanafunzi_sel}:", masomo_shule, default=masomo_wanafunzi.get(mwanafunzi_sel, masomo_shule))
+            if st.button("Hifadhi Masomo ya Mwanafunzi Huyu"):
+                st.session_state[f'masomo_wanafunzi_{darasa_id}'][mwanafunzi_sel] = masomo_yake
+                st.success("🎉 Masomo yamehifadhiwa kikamilifu!")
+        else:
+            st.warning("Weka wanafunzi kwanza kwenye Kipengele 3.")
+            
+    with tab_excel:
+        st.info("Pakia faili la Excel ambalo lina safu (columns) za 'Jina la Mwanafunzi' na masomo ambapo mwanafunzi anasoma yanawekewa alama ya V (Yes) au herufi 'Yes' au '1', au unaweza kupakua fomu ya mfano hapa chini.")
+        
+        # Kutoa template ya mfano ya Excel ya kusajili masomo
+        if names_list:
+            sample_data = {'Jina la Mwanafunzi': names_list}
+            for s in masomo_shule:
+                sample_data[s] = ['Yes'] * len(names_list)
+            df_sample = pd.DataFrame(sample_data)
+            
+            buffer_excel = io.BytesIO()
+            with pd.ExcelWriter(buffer_excel, engine='xlsxwriter') as writer:
+                df_sample.to_excel(writer, index=False, sheet_name='Usajili_Masomo')
+            buffer_excel.seek(0)
+            
+            st.download_button(
+                label="📥 Pakua Fomu ya Mfano ya Excel ya Masomo",
+                data=buffer_excel.getvalue(),
+                file_name=f"Fomu_Usajili_Masomo_{darasa_id}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            
+            st.write("---")
+            uploaded_sub_file = st.file_uploader("Pandisha Excel Iliyojazwa ya Masomo (.xlsx):", type=["xlsx"], key="upload_sub")
+            if uploaded_sub_file is not None:
+                df_sub_up = pd.read_excel(uploaded_sub_file)
+                df_sub_up.columns = [str(c).strip() for c in df_sub_up.columns]
+                if 'Jina la Mwanafunzi' in df_sub_up.columns:
+                    count_updated = 0
+                    for _, row in df_sub_up.iterrows():
+                        jina = row['Jina la Mwanafunzi']
+                        if jina in names_list:
+                            chaguo_huru = []
+                            for s in masomo_shule:
+                                if s in df_sub_up.columns:
+                                    val = str(row[s]).strip().upper()
+                                    if val in ['YES', 'Y', '1', 'TRUE', 'V']:
+                                        chaguo_huru.append(s)
+                            if chaguo_huru:
+                                st.session_state[f'masomo_wanafunzi_{darasa_id}'][jina] = chaguo_huru
+                                count_updated += 1
+                    st.success(f"🎉 Imefanikiwa kusajili masomo kwa wanafunzi {count_updated} kupitia Excel!")
+                    st.rerun()
+                else:
+                    st.error("Faili la Excel halina safu ya 'Jina la Mwanafunzi'.")
 
 # KIPENGELE 5 & 6 (ZIMEUNGANISHWA NA UDHIBITI WA KUFUNGA MFUMO)
 elif chaguo in ["5. Kujaza Alama za Majaribio (100%)", "6. Kujaza Alama za Mitihani (100%)"]:
@@ -251,7 +298,7 @@ elif chaguo in ["5. Kujaza Alama za Majaribio (100%)", "6. Kujaza Alama za Mitih
     mfumo_umefungwa = st.session_state.get(f'mfumo_umefungwa_{darasa_id}', False)
     
     if mfumo_umefungwa:
-        st.error("🔒 Samahani, matokeo yameshafungwa na Mkuu wa Schule (Admin). Huwezi kubadilisha au kuongeza alama tena.")
+        st.error("🔒 Samahani, matokeo yameshafungwa na Mkuu wa Shule (Admin). Huwezi kubadilisha au kuongeza alama tena.")
     
     if names_list:
         somo_sel = st.selectbox("Chagua Somo:", masomo_shule)
@@ -267,7 +314,6 @@ elif chaguo in ["5. Kujaza Alama za Majaribio (100%)", "6. Kujaza Alama za Mitih
         
         df_editor = pd.DataFrame(rows_to_edit)
         
-        # Kama mfumo umefungwa, data_editor inakuwa disabled kabisa
         edited_df = st.data_editor(
             df_editor, 
             use_container_width=True, 
