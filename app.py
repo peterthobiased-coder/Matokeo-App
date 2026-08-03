@@ -180,8 +180,17 @@ elif chaguo == "3. Sajili Majina ya Wanafunzi" and is_admin:
     st.header(f"3. Sajili Wanafunzi - {kidato_kilichochaguliwa}")
     tab1, tab2 = st.tabs(["Fomu ya Usajili", "Kupandisha Excel"])
     
-    with tab1:
-        with st.form("fomu_mwanafunzi"):
+     with tab1:
+        # Hapa ndipo tulipobadilisha 'fomu_mwanafunzi' na kuwa na darasa_id mwishoni
+        with st.form(f"fomu_mwanafunzi_{darasa_id}"):
+            mpya_jina = st.text_input("Jina Kamili la Mwanafunzi:").upper()
+            mpya_jinsia = st.selectbox("Jinsia:", ["M", "F"])
+            mpya_namba = st.text_input("Namba ya Usajili:", f"{shule_info['namba_shule']}/{str(len(wanafunzi_db)+1).zfill(4)}")
+            wasilisha = st.form_submit_button("Sajili")
+            if wasilisha and mpya_jina:
+                mpya_row = pd.DataFrame([[mpya_jina, mpya_jinsia, mpya_namba]], columns=['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'])
+                st.session_state[f'wanafunzi_db_{darasa_id}'] = pd.concat([wanafunzi_db, mpya_row], ignore_index=True)
+                st.rerun()
             mpya_jina = st.text_input("Jina Kamili la Mwanafunzi:").upper()
             mpya_jinsia = st.selectbox("Jinsia:", ["M", "F"])
             mpya_namba = st.text_input("Namba ya Usajili:", f"{shule_info['namba_shule']}/{str(len(wanafunzi_db)+1).zfill(4)}")
