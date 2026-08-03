@@ -228,7 +228,7 @@ elif chaguo == "3. Sajili Majina ya Wanafunzi" and is_admin:
     st.write("---")
     st.dataframe(wanafunzi_db, use_container_width=True, hide_index=True)
 
-# KIPENGELE 4: KIMERUDISHWA (Usajili wa Masomo kwa Mmoja-mmoja na kwa Excel)
+# KIPENGELE 4: Usajili wa Masomo (Mmoja-mmoja na kwa Excel)
 elif chaguo == "4. Kumsajilia Mwanafunzi Masomo" and is_admin:
     st.header("4. Kusajili Masomo ya Wanafunzi")
     tab_moja, tab_excel = st.tabs(["Kusajili Mmoja-mmoja", "Kusajili kupitia Excel"])
@@ -244,9 +244,8 @@ elif chaguo == "4. Kumsajilia Mwanafunzi Masomo" and is_admin:
             st.warning("Weka wanafunzi kwanza kwenye Kipengele 3.")
             
     with tab_excel:
-        st.info("Pakia faili la Excel ambalo lina safu (columns) za 'Jina la Mwanafunzi' na masomo ambapo mwanafunzi anasoma yanawekewa alama ya V (Yes) au herufi 'Yes' au '1', au unaweza kupakua fomu ya mfano hapa chini.")
+        st.info("Pakia faili la Excel ambalo lina safu (columns) za 'Jina la Mwanafunzi' na masomo ambapo mwanafunzi anasoma yanawekewa alama ya V (Yes) au herufi 'Yes' au '1'.")
         
-        # Kutoa template ya mfano ya Excel ya kusajili masomo
         if names_list:
             sample_data = {'Jina la Mwanafunzi': names_list}
             for s in masomo_shule:
@@ -537,12 +536,16 @@ elif chaguo == "11. Ripoti Binafsi ya Mwanafunzi (PDF)":
     else:
         st.warning("Weka wanafunzi kwanza.")
 
-# KIPENGELE 12
+# KIPENGELE 12: PAKUA FOMU ZA CAL NA ISAL
 elif chaguo == "12. Pakua Fomu za CAL na ISAL":
     st.header("12. Pakua Fomu Rasmi za CAL na ISAL (NECTA Format)")
     if names_list:
         tab_cal, tab_isal = st.tabs(["📊 PAKUA CAL (Jumla)", "📝 PAKUA ISAL (Kila Somo)"])
+        
         with tab_cal:
+            st.subheader("Candidate Entry List (CAL)")
+            st.info("Fomu hii inaonyesha orodha ya wanafunzi wote na jumla ya masomo waliyosajiliwa kusoma.")
+            
             rows_cal = []
             for idx, mwa in wanafunzi_db.iterrows():
                 jina = mwa['Jina la Mwanafunzi']
@@ -552,13 +555,63 @@ elif chaguo == "12. Pakua Fomu za CAL na ISAL":
                     'NAME OF CANDIDATE': jina,
                     'SEX': mwa['Jinsia (M/F)'],
                     'EXAM NO.': mwa['Namba ya Usajili'],
-                    'SCHOOL NAME': shule_info['shule'].split()[0],
-                    'TOTAL REGISTERED SUBJECTS': len(m_yake)
+                    'CENTRE NO.': shule_info['namba_shule'],
+                    'TOTAL SUBJECTS': len(m_yake)
                 }
                 for s in masomo_shule:
-                    stari[s] = "_" if s in m_yake else ""
+                    stari[s] = "V" if s in m_yake else "-"
                 rows_cal.append(stari)
+                
             df_cal_data = pd.DataFrame(rows_cal)
             st.dataframe(df_cal_data, use_container_width=True, hide_index=True)
+            
+            buffer_cal = io.BytesIO()
+            with pd.ExcelWriter(buffer_cal, engine='xlsxwriter') as writer:
+                df_cal_data.to_excel(writer, index=False, sheet_name='CAL')
+            buffer_cal.seek(0)
+            
+            st.download_button(
+                label="📥 Pakua CAL (Excel)",
+                data=buffer_cal.getvalue(),
+                file_name=f"CAL_{darasa_id}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+        with tab_isal:
+            st.subheader("Individual Subject Entry List (ISAL)")
+            st.info("Chagua somo ili uone na kupakua orodha ya wanafunzi waliojisajili kwenye somo hilo pekee.")
+            
+            somo_isal = st.selectbox("Chagua Somo kwa ajili ya ISAL:", masomo_shule, key="sel_isal_somo")
+            
+            wanafunzi_wa_somo_isal = []
+            for idx, mwa in wanafunzi_db.iterrows():
+                jina = mwa['Jina la Mwanafunzi']
+                m_yake = masomo_wanafunzi.get(jina, masomo_shule)
+                if somo_isal in m_yake:
+                    wanafunzi_wa_somo_isal.append({
+                        'S/N': len(wanafunzi_wa_somo_isal) + 1,
+                        'NAME OF CANDIDATE': jina,
+                        'SEX': mwa['Jinsia (M/F)'],
+                        'EXAM NO.': mwa['Namba ya Usajili'],
+                        'SUBJECT': somo_isal
+                    })
+            
+            if wanafunzi_wa_somo_isal:
+                df_isal_data = pd.DataFrame(wanafunzi_wa_somo_isal)
+                st.dataframe(df_isal_data, use_container_width=True, hide_index=True)
+                
+                buffer_isal = io.BytesIO()
+                with pd.ExcelWriter(buffer_isal, engine='xlsxwriter') as writer:
+                    df_isal_data.to_excel(writer, index=False, sheet_name='ISAL')
+                buffer_isal.seek(0)
+                
+                st.download_button(
+                    label=f"📥 Pakua ISAL ya {somo_isal} (Excel)",
+                    data=buffer_isal.getvalue(),
+                    file_name=f"ISAL_{somo_isal.replace(' ', '_')}_{darasa_id}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            else:
+                st.warning(f"Hakuna mwanafunzi aliyesajiliwa kusoma somo la {somo_isal}.")
     else:
-        st.warning("Hakuna wanafunzi kwenye mfumo.")
+        st.warning("Hakuna wanafunzi kwenye mfumo. Tafadhali sajili wanafunzi kwanza.")
