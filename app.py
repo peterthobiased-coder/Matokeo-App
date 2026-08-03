@@ -572,11 +572,6 @@ elif chaguo == "12. Pakua Fomu za CAL na ISAL":
             
             buffer_cal = io.BytesIO()
             with pd.ExcelWriter(buffer_cal, engine='openpyxl') as writer:
-                # Chukua karatasi ya kwanza inayoundwa na openpyxl yenyewe
-                wb = writer.book
-                ws = wb.active
-                ws.title = "CAL"
-                
                 hdr_rows = [
                     [shule_info['wizara'], "", "", "", ""],
                     [shule_info['idara'], "", "", "", ""],
@@ -589,12 +584,16 @@ elif chaguo == "12. Pakua Fomu za CAL na ISAL":
                 ]
                 df_hdr = pd.DataFrame(hdr_rows)
                 
-                # Andika zote mbili kwenye sheet hiyo hiyo ya "CAL" iliyo wazi
+                # Andika data zote kwenye sheet inayoitwa "CAL"
                 df_hdr.to_excel(writer, index=False, header=False, sheet_name="CAL")
                 df_cal_data.to_excel(writer, index=False, startrow=8, sheet_name="CAL")
                 
-                # Kulazimisha mfumo kutambua sheet ipo visible
-                ws.views.sheetView[0].tabSelected = True
+                # Kulazimisha openpyxl kuweka sheet ya kwanza kuwa active na visible
+                wb = writer.book
+                for sheet in wb.worksheets:
+                    sheet.views.sheetView[0].tabSelected = False
+                wb.worksheets[0].views.sheetView[0].tabSelected = True
+                wb.active = 0
                 
             st.download_button(
                 label="⬇️ Pakua Fomu ya CAL (Excel)",
@@ -628,10 +627,6 @@ elif chaguo == "12. Pakua Fomu za CAL na ISAL":
                 
                 buffer_isal = io.BytesIO()
                 with pd.ExcelWriter(buffer_isal, engine='openpyxl') as writer:
-                    wb_isal = writer.book
-                    ws_isal = wb_isal.active
-                    ws_isal.title = "ISAL"
-                    
                     hdr_rows_isal = [
                         [shule_info['wizara'], "", "", ""],
                         [shule_info['idara'], "", "", ""],
@@ -648,8 +643,12 @@ elif chaguo == "12. Pakua Fomu za CAL na ISAL":
                     df_hdr_isal.to_excel(writer, index=False, header=False, sheet_name="ISAL")
                     df_isal_data.to_excel(writer, index=False, startrow=9, sheet_name="ISAL")
                     
-                    # Kulazimisha mfumo kutambua sheet ipo visible
-                    ws_isal.views.sheetView[0].tabSelected = True
+                    # Kulazimisha openpyxl kuweka sheet ya kwanza kuwa active na visible
+                    wb_isal = writer.book
+                    for sheet in wb_isal.worksheets:
+                        sheet.views.sheetView[0].tabSelected = False
+                    wb_isal.worksheets[0].views.sheetView[0].tabSelected = True
+                    wb_isal.active = 0
                     
                 st.download_button(
                     label=f"⬇️ Pakua Fomu ya ISAL - {somo_isal} (Excel)",
