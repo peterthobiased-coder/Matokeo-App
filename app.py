@@ -32,7 +32,6 @@ def calculate_division(pointi_za_masomo, valid_subjects, total_registered_subjec
     if valid_subjects < 7:
         return 'INC', sum(pointi_za_masomo)
     
-    # NECTA inachukua masomo 7 bora pekee
     pointi_za_masomo.sort()
     pointi_saba = sum(pointi_za_masomo[:7])
     
@@ -43,17 +42,15 @@ def calculate_division(pointi_za_masomo, valid_subjects, total_registered_subjec
     else: return '0', pointi_saba
 
 # ------------------------------------------------------------------
-# 2. Uchaguzi wa Darasa na Kutenganisha Data (Sidebar)
+# 2. Session State Setup kwa kila Darasa
 # ------------------------------------------------------------------
 st.sidebar.title("MIPANGILIO YA MFUMO")
-
 kidato_kilichochaguliwa = st.sidebar.selectbox(
     "Chagua Kidato:", 
     ["KIDATO CHA KWANZA", "KIDATO CHA PILI", "KIDATO CHA TATU", "KIDATO CHA NNE"]
 )
 darasa_id = kidato_kilichochaguliwa.replace(" ", "_")
 
-# Kila darasa linakuwa na hifadhi yake binafsi (Session State Isolation)
 if f'shule_info_{darasa_id}' not in st.session_state:
     st.session_state[f'shule_info_{darasa_id}'] = {
         "wizara": "PRIME MINISTER'S OFFICE", 
@@ -74,27 +71,33 @@ if f'remarks_dict_{darasa_id}' not in st.session_state:
 if f'wanafunzi_db_{darasa_id}' not in st.session_state:
     st.session_state[f'wanafunzi_db_{darasa_id}'] = pd.DataFrame(columns=['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'])
 
+# Hifadhi ya masomo aliyosajiliwa kila mwanafunzi mfano: {"JUMA": ["CIVICS", "HISTORY"]}
 if f'masomo_wanafunzi_{darasa_id}' not in st.session_state:
     st.session_state[f'masomo_wanafunzi_{darasa_id}'] = {}
 
-if f'almar_majaribio_{darasa_id}' not in st.session_state:
-    st.session_state[f'almar_majaribio_{darasa_id}'] = pd.DataFrame()
+# Hifadhi mpya za alama: muundo ni DataFrame zenye nguzo [Jina la Mwanafunzi, Somo, Alama]
+if f'alama_majaribio_db_{darasa_id}' not in st.session_state:
+    st.session_state[f'alama_majaribio_db_{darasa_id}'] = pd.DataFrame(columns=['Jina la Mwanafunzi', 'Somo', 'Alama'])
 
-if f'almar_mitihani_{darasa_id}' not in st.session_state:
-    st.session_state[f'almar_mitihani_{darasa_id}'] = pd.DataFrame()
+if f'alama_mitihani_db_{darasa_id}' not in st.session_state:
+    st.session_state[f'alama_mitihani_db_{darasa_id}'] = pd.DataFrame(columns=['Jina la Mwanafunzi', 'Somo', 'Alama'])
 
-# Njia za mkato za kuita data za darasa husika
+# Njia fupi za kuita data
 shule_info = st.session_state[f'shule_info_{darasa_id}']
 masomo_shule = st.session_state[f'masomo_shule_{darasa_id}']
 remarks_dict = st.session_state[f'remarks_dict_{darasa_id}']
 wanafunzi_db = st.session_state[f'wanafunzi_db_{darasa_id}']
 masomo_wanafunzi = st.session_state[f'masomo_wanafunzi_{darasa_id}']
 
+# Hakikisha kila mwanafunzi aliyesajiliwa anapewa masomo yote ya shule kama default (kama hana)
+for jina in wanafunzi_db['Jina la Mwanafunzi'].tolist():
+    if jina not in masomo_wanafunzi:
+        masomo_wanafunzi[jina] = masomo_shule.copy()
+
 # ------------------------------------------------------------------
 # Udhibiti wa Ufikiaji (Access Control)
 # ------------------------------------------------------------------
 hali_ya_mtumiaji = st.sidebar.selectbox("Aina ya Mtumiaji:", ["Mwalimu (Jaza Alama Tu)", "Admin (Mkuu wa Shule)"])
-
 is_admin = False
 if hali_ya_mtumiaji == "Admin (Mkuu wa Shule)":
     pin_ingizwa = st.sidebar.text_input("Ingiza PIN ya Admin:", type="password")
@@ -117,17 +120,15 @@ if is_admin:
 orodha_ya_menu.extend([
     "5. Kujaza Alama za Majaribio (100%)",
     "6. Kujaza Alama za Mitihani (100%)",
-    "7. Matokeo ya Majaribio Pekee",
-    "8. Matokeo ya Mitihani Pekee",
-    "9. Matokeo ya Majaribio & Mitihani (Average)",
+    "7. Wastani wa Majaribio & Mitihani",
     "10. Matokeo ya NECTA Format & Summary",
-    "11. Ripoti Binafsi ya Mwanafunzi (PDF)"
+    "11. Ripoti Binafsi ya Mwanafunzi (PDF)",
+    "12. Pakua Fomu za CAL na ISAL"
 ])
 
 st.sidebar.write("---")
 st.sidebar.title("MENU KUU")
 chaguo = st.sidebar.radio("Nenda kwenye kipengele:", orodha_ya_menu)
-
 names_list = wanafunzi_db['Jina la Mwanafunzi'].tolist()
 
 # ------------------------------------------------------------------
@@ -135,46 +136,52 @@ names_list = wanafunzi_db['Jina la Mwanafunzi'].tolist()
 # ------------------------------------------------------------------
 if chaguo == "0. Kuhusu Mfumo":
     st.header(f"Mfumo wa Kuchakata Matokeo - {kidato_kilichochaguliwa}")
-    st.info(f"Hivi sasa unafanya kazi kwenye data za: **{kidato_kilichochaguliwa}**. Ukitaka kubadilisha darasa, tumia menu iliyopo juu kabisa upande wa kushoto.")
+    st.info(f"Hivi sasa unafanya kazi kwenye data za: **{kidato_kilichochaguliwa}**.")
 
 # ------------------------------------------------------------------
 # KIPENGELE 1: TAARIFA BINAFSI ZA MTIHANI (ADMIN ONLY)
 # ------------------------------------------------------------------
 elif chaguo == "1. Taarifa Binafsi za Mtihani" and is_admin:
-    st.header(f"1. Taarifa za Shule na Mtihani - {kidato_kilichochaguliwa}")
-    shule_info["wizara"] = st.text_input("Wizara", shule_info["wizara"])
-    shule_info["mkoa"] = st.text_input("Mkoa", shule_info["mkoa"])
-    shule_info["wilaya"] = st.text_input("Wilaya / Halmashauri", shule_info["wilaya"])
-    shule_info["shule"] = st.text_input("Jina la Shule", shule_info["shule"])
-    shule_info["namba_shule"] = st.text_input("Namba ya Kituo (Centre No)", shule_info["namba_shule"])
-    shule_info["aina_mtihani"] = st.text_input("Aina ya Mtihani", shule_info["aina_mtihani"])
-    shule_info["mwaka"] = st.text_input("Mwaka / Mwezi", shule_info["mwaka"])
-    
-    st.write("---")
-    st.subheader("Badili Maelezo ya Gredi (Remarks Customization)")
-    for key in remarks_dict.keys():
-        remarks_dict[key] = st.text_input(f"Maelezo ya Gredi {key}:", remarks_dict[key])
-    st.success("Taarifa zimehifadhiwa!")
+    st.header("1. Taarifa za Shule na Mtihani")
+    with st.form("taarifa_shule_form"):
+        shule_info["wizara"] = st.text_input("Wizara", shule_info["wizara"])
+        shule_info["mkoa"] = st.text_input("Mkoa", shule_info["mkoa"])
+        shule_info["wilaya"] = st.text_input("Wilaya / Halmashauri", shule_info["wilaya"])
+        shule_info["shule"] = st.text_input("Jina la Shule", shule_info["shule"])
+        shule_info["namba_shule"] = st.text_input("Namba ya Kituo (Centre No)", shule_info["namba_shule"])
+        shule_info["aina_mtihani"] = st.text_input("Aina ya Mtihani", shule_info["aina_mtihani"])
+        shule_info["mwaka"] = st.text_input("Mwaka / Mwezi", shule_info["mwaka"])
+        
+        st.subheader("Badili Maelezo ya Gredi (Remarks)")
+        for key in remarks_dict.keys():
+            remarks_dict[key] = st.text_input(f"Maelezo ya Gredi {key}:", remarks_dict[key])
+            
+        hifadhi_taarifa = st.form_submit_button("Hifadhi Taarifa Zote")
+        if hifadhi_taarifa:
+            st.success("🎉 Taarifa za shule na gredi zimehifadhiwa kikamilifu kwenye mfumo!")
 
 # ------------------------------------------------------------------
 # KIPENGELE 2: USAJILI WA MASOMO YA SHULE (ADMIN ONLY)
 # ------------------------------------------------------------------
 elif chaguo == "2. Usajili wa Masomo ya Shule (Hadi 20)" and is_admin:
-    st.header(f"2. Usajili wa Masomo - {kidato_kilichochaguliwa}")
-    masomo_maandishi = st.text_area("Ingiza masomo yote yakitenganishwa kwa alama ya mkato (,):", ", ".join(masomo_shule))
-    masomo_yaliyosafishwa = [m.strip().upper() for m in masomo_maandishi.split(",") if m.strip()]
-    
-    if len(masomo_yaliyosafishwa) > 20:
-        st.error("Umevuka kikomo! Mfumo unaruhusu mwisho masomo 20 pekee.")
-    else:
-        st.session_state[f'masomo_shule_{darasa_id}'] = masomo_yaliyosafishwa
-        st.success(f"Usajili umekamilika. Jumla ya masomo: {len(masomo_yaliyosafishwa)}")
+    st.header("2. Usajili wa Masomo ya Shule")
+    with st.form("masomo_shule_form"):
+        masomo_maandishi = st.text_area("Ingiza masomo yote yakitenganishwa kwa alama ya mkato (,):", ", ".join(masomo_shule))
+        wasilisha_masomo = st.form_submit_button("Hifadhi Orodha ya Masomo")
+        
+        if wasilisha_masomo:
+            masomo_yaliyosafishwa = [m.strip().upper() for m in masomo_maandishi.split(",") if m.strip()]
+            if len(masomo_yaliyosafishwa) > 20:
+                st.error("Umevuka kikomo! Mfumo unaruhusu mwisho masomo 20 pekee.")
+            else:
+                st.session_state[f'masomo_shule_{darasa_id}'] = masomo_yaliyosafishwa
+                st.success(f"🎉 Masomo yamehifadhiwa. Jumla ya masomo ya shule: {len(masomo_yaliyosafishwa)}")
 
 # ------------------------------------------------------------------
-# KIPENGELE 3: SAJILI MAJINA YA WANAFUNZI (ADMIN ONLY) - IMEBORESHWA
+# KIPENGELE 3: SAJILI MAJINA YA WANAFUNZI (ADMIN ONLY)
 # ------------------------------------------------------------------
 elif chaguo == "3. Sajili Majina ya Wanafunzi" and is_admin:
-    st.header(f"3. Sajili Wanafunzi - {kidato_kilichochaguliwa}")
+    st.header("3. Sajili Wanafunzi")
     tab1, tab2 = st.tabs(["Fomu ya Usajili", "Kupandisha Excel"])
     
     with tab1:
@@ -182,159 +189,209 @@ elif chaguo == "3. Sajili Majina ya Wanafunzi" and is_admin:
             mpya_jina = st.text_input("Jina Kamili la Mwanafunzi:").upper()
             mpya_jinsia = st.selectbox("Jinsia:", ["M", "F"])
             mpya_namba = st.text_input("Namba ya Usajili:", f"{shule_info['namba_shule']}/{str(len(wanafunzi_db)+1).zfill(4)}")
-            wasilisha = st.form_submit_button("Sajili")
+            wasilisha = st.form_submit_button("Hifadhi Mwanafunzi")
             if wasilisha and mpya_jina:
                 mpya_row = pd.DataFrame([[mpya_jina, mpya_jinsia, mpya_namba]], columns=['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'])
                 st.session_state[f'wanafunzi_db_{darasa_id}'] = pd.concat([wanafunzi_db, mpya_row], ignore_index=True)
+                st.success(f"🎉 {mpya_jina} amesajiliwa na kuhifadhiwa!")
                 st.rerun()
 
     with tab2:
         st.subheader("Pakua na Upakie Template ya Excel")
-        
         template_df = pd.DataFrame(columns=['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'])
         template_df.loc[0] = ["JUMA HAMISI", "M", f"{shule_info['namba_shule']}/0001"]
         
         buffer_template = io.BytesIO()
         with pd.ExcelWriter(buffer_template, engine='openpyxl') as writer:
-            template_df.to_excel(writer, index=False, sheet_name='Wanafunzi')
-        buffer_template.seek(0)
+            template_df.to_excel(writer, index=False)
         
-        st.download_button(
-            label="⬇️ Pakua Template ya Excel Hapa",
-            data=buffer_template.getvalue(),
-            file_name=f"Template_Usajili_{darasa_id}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-        
-        st.write("---")
-        
+        st.download_button(label="⬇️ Pakua Template ya Excel Hapa", data=buffer_template.getvalue(), file_name=f"Template_Wanafunzi_{darasa_id}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         uploaded_file = st.file_uploader("Pandisha Excel iliyojazwa (.xlsx):", type=["xlsx"])
+        
         if uploaded_file is not None:
             try:
                 df_up = pd.read_excel(uploaded_file)
                 df_up.columns = [str(c).strip() for c in df_up.columns]
-                vigezo_vya_lazima = ['Jina la Mwanafunzi', 'Jinsia (M/F)']
-                
-                if all(kalamu in df_up.columns for kalamu in vigezo_vya_lazima):
-                    if 'Namba ya Usajili' not in df_up.columns:
-                        df_up['Namba ya Usajili'] = [f"{shule_info['namba_shule']}/{str(i+1).zfill(4)}" for i in range(len(df_up))]
-                    
+                if 'Jina la Mwanafunzi' in df_up.columns and 'Jinsia (M/F)' in df_up.columns:
                     df_up['Jina la Mwanafunzi'] = df_up['Jina la Mwanafunzi'].astype(str).str.upper().str.strip()
                     df_up['Jinsia (M/F)'] = df_up['Jinsia (M/F)'].astype(str).str.upper().str.strip()
-                    
+                    if 'Namba ya Usajili' not in df_up.columns:
+                        df_up['Namba ya Usajili'] = [f"{shule_info['namba_shule']}/{str(i+1).zfill(4)}" for i in range(len(df_up))]
                     st.session_state[f'wanafunzi_db_{darasa_id}'] = df_up[['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili']].dropna(subset=['Jina la Mwanafunzi']).reset_index(drop=True)
-                    st.success("🎉 Wanafunzi wote wamepandishwa kikamilifu kutoka kwenye Excel!")
+                    st.success("🎉 Wanafunzi kutoka Excel wamehifadhiwa kikamilifu!")
                     st.rerun()
-                else:
-                    st.error(f"Muundo wa Excel si sahihi! Hakikisha Excel yako ina nguzo zenye majina haya hasa: {vigezo_vya_lazima}")
             except Exception as e:
-                st.error(f"Imeshindwa kusoma faili la Excel. Hitilafu: {e}")
+                st.error(f"Hitilafu: {e}")
 
     st.write("---")
     st.subheader("Orodha ya Wanafunzi Waliosajiliwa")
-    st.dataframe(st.session_state[f'wanafunzi_db_{darasa_id}'], use_container_width=True)
+    wanafunzi_onyesho = st.session_state[f'wanafunzi_db_{darasa_id}'].copy()
+    wanafunzi_onyesho.insert(0, 'S/N', range(1, len(wanafunzi_onyesho) + 1))
+    st.dataframe(wanafunzi_onyesho, use_container_width=True, index=False)
 
 # ------------------------------------------------------------------
-# KIPENGELE 4: KUMSAJILIA MWANAFUNZI MASOMO (ADMIN ONLY)
+# KIPENGELE 4: KUMSAJILIA MWANAFUNZI MASOMO (Njia Mbili: Moja kwa Moja / Excel)
 # ------------------------------------------------------------------
 elif chaguo == "4. Kumsajilia Mwanafunzi Masomo" and is_admin:
     st.header("4. Kusajili Masomo Maalum ya Wanafunzi")
     if len(names_list) == 0:
         st.warning("Tafadhali sajili majina kwanza kwenye kipengele namba 3.")
     else:
-        mwanafunzi_sel = st.selectbox("Chagua Mwanafunzi:", names_list)
-        if mwanafunzi_sel not in masomo_wanafunzi:
-            masomo_wanafunzi[mwanafunzi_sel] = masomo_shule.copy()
-            
-        masomo_yake = st.multiselect(f"Chagua Masomo ya {mwanafunzi_sel}:", masomo_shule, default=masomo_wanafunzi[mwanafunzi_sel])
-        if st.button(f"Hifadhi Masomo"):
-            st.session_state[f'masomo_wanafunzi_{darasa_id}'][mwanafunzi_sel] = masomo_yake
-            st.success(f"Masomo ya {mwanafunzi_sel} yamehifadhiwa!")
-
-# ------------------------------------------------------------------
-# KIPENGELE 5 & 6: KUJAZA ALAMA (WALIMU NA ADMIN)
-# ------------------------------------------------------------------
-elif chaguo == "5. Kujaza Alama za Majaribio (100%)":
-    st.header("5. Kujaza Alama za Majaribio (Upeo 100%)")
-    if len(names_list) == 0:
-        st.warning("Hakuna wanafunzi waliosajiliwa.")
-    else:
-        cols = ['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'] + [f"{s} (100%)" for s in masomo_shule]
-        db_maj = st.session_state[f'almar_majaribio_{darasa_id}']
-        if db_maj.empty or not all(c in db_maj.columns for c in cols):
-            db_maj = wanafunzi_db.copy()
-            for s in masomo_shule: db_maj[f"{s} (100%)"] = np.nan
+        tab_direct, tab_excel = st.tabs(["Njia ya Kwanza: Moja kwa Moja", "Njia ya Pili: Kupitia Excel"])
         
-        edited = st.data_editor(db_maj[cols], use_container_width=True, num_rows="fixed")
-        if st.button("Hifadhi Alama"):
-            st.session_state[f'almar_majaribio_{darasa_id}'] = edited
-            st.success("Zimehifadhiwa kikamilifu!")
+        with tab_direct:
+            mwanafunzi_sel = st.selectbox("Chagua Mwanafunzi:", names_list)
+            masomo_yake = st.multiselect(f"Chagua Masomo ya {mwanafunzi_sel}:", masomo_shule, default=masomo_wanafunzi.get(mwanafunzi_sel, masomo_shule))
+            if st.button(f"Hifadhi Masomo ya {mwanafunzi_sel}"):
+                st.session_state[f'masomo_wanafunzi_{darasa_id}'][mwanafunzi_sel] = masomo_yake
+                st.success(f"🎉 Masomo ya mwanafunzi {mwanafunzi_sel} yamehifadhiwa vizuri!")
+                
+        with tab_excel:
+            st.subheader("Kusajili Masomo kwa Excel")
+            # Kutengeneza Excel Template
+            rows_template = []
+            for jina in names_list:
+                m_yake = masomo_wanafunzi.get(jina, masomo_shule)
+                stari = {'Jina la Mwanafunzi': jina}
+                for s in masomo_shule:
+                    stari[s] = "NDIO" if s in m_yake else "HAPANA"
+                rows_template.append(stari)
+            df_m_template = pd.DataFrame(rows_template)
+            
+            buffer_m = io.BytesIO()
+            with pd.ExcelWriter(buffer_m, engine='openpyxl') as writer:
+                df_m_template.to_excel(writer, index=False)
+            
+            st.download_button(label="⬇️ Pakua Template ya Excel ya Masomo", data=buffer_m.getvalue(), file_name=f"Usajili_Masomo_Template_{darasa_id}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            
+            file_m_up = st.file_uploader("Pandisha Excel ya Usajili wa Masomo (.xlsx):", type=["xlsx"], key="masomo_excel_up")
+            if file_m_up is not None:
+                try:
+                    df_m_up = pd.read_excel(file_m_up)
+                    df_m_up.columns = [str(c).strip().upper() for c in df_m_up.columns]
+                    
+                    for _, row in df_m_up.iterrows():
+                        jina_mwa = str(row['JINA LA MWANAFUNZI']).strip().upper()
+                        if jina_mwa in names_list:
+                            masomo_yaliyochaguliwa = []
+                            for s in masomo_shule:
+                                if s in df_m_up.columns and str(row[s]).strip().upper() == "NDIO":
+                                    masomo_yaliyochaguliwa.append(s)
+                            st.session_state[f'masomo_wanafunzi_{darasa_id}'][jina_mwa] = masomo_yaliyochaguliwa
+                    st.success("🎉 Usajili wa masomo ya wanafunzi kutoka kwenye Excel umehifadhiwa kikamilifu!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Hitilafu wakati wa kusoma Excel ya masomo: {e}")
 
-elif chaguo == "6. Kujaza Alama za Mitihani (100%)":
-    st.header("6. Kujaza Alama za Mitihani (Upeo 100%)")
+# ------------------------------------------------------------------
+# KIPENGELE 5 & 6: KUJAZA ALAMA KWA KUCHAGUA SOMO (Waliosajiliwa Tu)
+# ------------------------------------------------------------------
+elif chaguo in ["5. Kujaza Alama za Majaribio (100%)", "6. Kujaza Alama za Mitihani (100%)"]:
+    is_majaribio = "Majaribio" in chaguo
+    db_key = f'alama_majaribio_db_{darasa_id}' if is_majaribio else f'alama_mitihani_db_{darasa_id}'
+    
+    st.header(f"Kujaza Alama za { 'Majaribio' if is_majaribio else 'Mitihani' } (Upeo 100%)")
+    
     if len(names_list) == 0:
         st.warning("Hakuna wanafunzi waliosajiliwa.")
     else:
-        cols = ['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'] + [f"{s} (100%)" for s in masomo_shule]
-        db_mit = st.session_state[f'almar_mitihani_{darasa_id}']
-        if db_mit.empty or not all(c in db_mit.columns for c in cols):
-            db_mit = wanafunzi_db.copy()
-            for s in masomo_shule: db_mit[f"{s} (100%)"] = np.nan
+        somo_sel = st.selectbox("Chagua Somo la Kujaza Alama:", masomo_shule)
+        
+        # Chuja tu wanafunzi waliosajiliwa na hilo somo
+        wanafunzi_wa_somo = [jina for jina in names_list if somo_sel in masomo_wanafunzi.get(jina, masomo_shule)]
+        
+        if not wanafunzi_wa_somo:
+            st.warning(f"Hakuna mwanafunzi hata mmoja aliyesajiliwa kwenye somo la {somo_sel}.")
+        else:
+            st.info(f"Inaonyesha wanafunzi **{len(wanafunzi_wa_somo)}** waliosajiliwa somo la **{somo_sel}** pekee.")
             
-        edited = st.data_editor(db_mit[cols], use_container_width=True, num_rows="fixed")
-        if st.button("Hifadhi Alama"):
-            st.session_state[f'almar_mitihani_{darasa_id}'] = edited
-            st.success("Zimehifadhiwa!")
+            # Kujenga DataFrame ya uhariri (Data Editor)
+            current_db = st.session_state[db_key]
+            rows_to_edit = []
+            for idx, jina in enumerate(wanafunzi_wa_somo):
+                zilizopo = current_db[(current_db['Jina la Mwanafunzi'] == jina) & (current_db['Somo'] == somo_sel)]
+                alama_iliyopo = zilizopo['Alama'].values[0] if not zilizopo.empty else np.nan
+                
+                # Kupata namba ya usajili na jinsia
+                m_info = wanafunzi_db[wanafunzi_db['Jina la Mwanafunzi'] == jina].iloc[0]
+                rows_to_edit.append({
+                    'S/N': idx + 1,
+                    'Jina la Mwanafunzi': jina,
+                    'Jinsia (M/F)': m_info['Jinsia (M/F)'],
+                    'Namba ya Usajili': m_info['Namba ya Usajili'],
+                    'Alama (100%)': alama_iliyopo
+                })
+            df_editor = pd.DataFrame(rows_to_edit)
+            
+            edited_df = st.data_editor(df_editor, use_container_width=True, num_rows="fixed", disabled=['S/N','Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'])
+            
+            if st.button(f"Hifadhi Alama za {somo_sel}"):
+                # Futa alama za zamani za somo hili na weka mpya
+                temp_db = current_db[current_db['Somo'] != somo_sel].copy()
+                
+                new_rows = []
+                for _, r in edited_df.iterrows():
+                    val = r['Alama (100%)']
+                    if pd.notna(val) and str(val).strip() != "":
+                        new_rows.append({'Jina la Mwanafunzi': r['Jina la Mwanafunzi'], 'Somo': somo_sel, 'Alama': float(val)})
+                
+                if new_rows:
+                    temp_db = pd.concat([temp_db, pd.DataFrame(new_rows)], ignore_index=True)
+                
+                st.session_state[db_key] = temp_db
+                st.success(f"🎉 Alama zote za somo la {somo_sel} zimehifadhiwa kikamilifu kwenye mfumo!")
 
 # ------------------------------------------------------------------
-# KIPENGELE 7 & 8 & 9: PREVIEWS
+# KIPENGELE 7: WASTANI WA MAJARIBIO NA MITIHANI
 # ------------------------------------------------------------------
-elif chaguo == "7. Matokeo ya Majaribio Pekee":
-    if st.session_state[f'almar_majaribio_{darasa_id}'].empty:
-        st.warning("Hakuna alama za majaribio zilizojazwa bado.")
+elif chaguo == "7. Wastani wa Majaribio & Mitihani":
+    st.header("7. Wastani wa Alama (Majaribio & Mitihani)")
+    db_maj = st.session_state[f'alama_majaribio_db_{darasa_id}']
+    db_mit = st.session_state[f'alama_mitihani_db_{darasa_id}']
+    
+    if len(names_list) == 0:
+        st.warning("Hakuna wanafunzi waliosajiliwa.")
     else:
-        st.dataframe(st.session_state[f'almar_majaribio_{darasa_id}'], use_container_width=True)
-
-elif chaguo == "8. Matokeo ya Mitihani Pekee":
-    if st.session_state[f'almar_mitihani_{darasa_id}'].empty:
-        st.warning("Hakuna alama za mitihani zilizojazwa bado.")
-    else:
-        st.dataframe(st.session_state[f'almar_mitihani_{darasa_id}'], use_container_width=True)
-
-elif chaguo == "9. Matokeo ya Majaribio & Mitihani (Average)":
-    st.header("9. Wastani wa Majaribio na Mitihani")
-    db_maj = st.session_state[f'almar_majaribio_{darasa_id}']
-    db_mit = st.session_state[f'almar_mitihani_{darasa_id}']
-    if db_maj.empty or db_mit.empty:
-        st.warning("Data haijajazwa kikamilifu kwenye vipengele vya 5 na 6.")
-    else:
-        df_avg = wanafunzi_db.copy()
-        for s in masomo_shule:
-            maj_vals = pd.to_numeric(db_maj[f"{s} (100%)"], errors='coerce').fillna(0)
-            mit_vals = pd.to_numeric(db_mit[f"{s} (100%)"], errors='coerce').fillna(0)
-            df_avg[s] = np.round((maj_vals + mit_vals) / 2, 1)
-        st.dataframe(df_avg, use_container_width=True)
+        rows_avg = []
+        for idx, mwa in wanafunzi_db.iterrows():
+            jina = mwa['Jina la Mwanafunzi']
+            stari = {'S/N': idx + 1, 'Jina la Mwanafunzi': jina, 'Jinsia': mwa['Jinsia (M/F)']}
+            m_yake = masomo_wanafunzi.get(jina, masomo_shule)
+            
+            for s in masomo_shule:
+                if s not in m_yake:
+                    stari[s] = "-"
+                    continue
+                
+                maj_val = db_maj[(db_maj['Jina la Mwanafunzi'] == jina) & (db_maj['Somo'] == s)]['Alama'].values
+                mit_val = db_mit[(db_mit['Jina la Mwanafunzi'] == jina) & (db_mit['Somo'] == s)]['Alama'].values
+                
+                m_score = float(maj_val[0]) if len(maj_val) > 0 and pd.notna(maj_val[0]) else 0.0
+                e_score = float(mit_val[0]) if len(mit_val) > 0 and pd.notna(mit_val[0]) else 0.0
+                
+                stari[s] = round((m_score + e_score) / 2, 1)
+            rows_avg.append(stari)
+            
+        st.dataframe(pd.DataFrame(rows_avg), use_container_width=True, index=False)
 
 # ------------------------------------------------------------------
 # KIPENGELE 10: MATOKEO YA NECTA FORMAT & SUMMARY
 # ------------------------------------------------------------------
 elif chaguo == "10. Matokeo ya NECTA Format & Summary":
     st.header("10. Broadsheet ya Matokeo (NECTA Format)")
-    db_maj = st.session_state[f'almar_majaribio_{darasa_id}']
-    db_mit = st.session_state[f'almar_mitihani_{darasa_id}']
+    db_maj = st.session_state[f'alama_majaribio_db_{darasa_id}']
+    db_mit = st.session_state[f'alama_mitihani_db_{darasa_id}']
     
-    if db_maj.empty or db_mit.empty:
-        st.warning("Tafadhali jaza alama kwanza kwenye vipengele vya 5 na 6.")
+    if len(names_list) == 0:
+        st.warning("Tafadhali sajili wanafunzi kwanza.")
     else:
         st.markdown(f"<h3 style='text-align: center;'>{shule_info['wizara']}</h3>", unsafe_allow_html=True)
         st.markdown(f"<h4 style='text-align: center;'>{shule_info['shule']} ({shule_info['namba_shule']})</h4>", unsafe_allow_html=True)
         
         orodha_ripoti = []
-        summary_masomo = {somo: {'A': 0, 'B': 0, 'C': 0, 'D': 0, 'F': 0, 'Alama': 0.0, 'Wanafunzi': 0} for somo in masomo_shule}
-
         for idx, mwanafunzi in wanafunzi_db.iterrows():
             jina = mwanafunzi['Jina la Mwanafunzi']
-            taarifa = {'S/N': idx + 1, 'NAME OF CANDIDATE': jina, 'SEX': mwanafunzi['Jinsia (M/F)'], 'INDEX NO': mwanafunzi['Namba ya Usajili']}
+            taarifa = {'NAME OF CANDIDATE': jina, 'SEX': mwanafunzi['Jinsia (M/F)'], 'INDEX NO': mwanafunzi['Namba ya Usajili']}
             
             pointi_za_masomo = []
             jumla_alama = 0.0
@@ -346,65 +403,59 @@ elif chaguo == "10. Matokeo ya NECTA Format & Summary":
                     taarifa[f"{somo} GR"] = "-"
                     continue
 
-                cwt = pd.to_numeric(db_maj.loc[idx, f"{somo} (100%)"], errors='coerce')
-                eet = pd.to_numeric(db_mit.loc[idx, f"{somo} (100%)"], errors='coerce')
+                maj_val = db_maj[(db_maj['Jina la Mwanafunzi'] == jina) & (db_maj['Somo'] == somo)]['Alama'].values
+                mit_val = db_mit[(db_mit['Jina la Mwanafunzi'] == jina) & (db_mit['Somo'] == somo)]['Alama'].values
                 
-                cwt_val = float(cwt) if not pd.isna(cwt) else 0.0
-                eet_val = float(eet) if not pd.isna(eet) else 0.0
+                cwt_val = float(maj_val[0]) if len(maj_val) > 0 and pd.notna(maj_val[0]) else 0.0
+                eet_val = float(mit_val[0]) if len(mit_val) > 0 and pd.notna(mit_val[0]) else 0.0
                 
                 wastani = round((cwt_val + eet_val) / 2, 1)
                 daraja, pointi = calculate_grade_and_points(wastani)
                 
                 taarifa[f"{somo} GR"] = daraja if daraja else "-"
-                
                 if daraja:
                     pointi_za_masomo.append(pointi)
                     jumla_alama += wastani
                     masomo_yaliyofanywa += 1
-                    summary_masomo[somo][daraja] += 1
-                    summary_masomo[somo]['Alama'] += wastani
-                    summary_masomo[somo]['Wanafunzi'] += 1
 
             div, pts = calculate_division(pointi_za_masomo, masomo_yaliyofanywa, len(masomo_yake))
-            
             taarifa['TOTAL MARKS'] = round(jumla_alama, 1)
             taarifa['AVG'] = round(jumla_alama / masomo_yaliyofanywa, 1) if masomo_yaliyofanywa > 0 else 0
             taarifa['POINTS'] = pts
             taarifa['DIV'] = div
-            
             orodha_ripoti.append(taarifa)
 
         if orodha_ripoti:
             df_final = pd.DataFrame(orodha_ripoti)
             df_final = df_final.sort_values(by=['DIV', 'POINTS', 'AVG'], ascending=[True, True, False]).reset_index(drop=True)
-            df_final['POSITION'] = df_final.index + 1
-            df_final['S/N'] = df_final.index + 1
-            st.dataframe(df_final, use_container_width=True)
-        else:
-            st.warning("Hakuna taarifa za wanafunzi zilizopatikana.")
+            df_final.insert(0, 'S/N', range(1, len(df_final) + 1))
+            df_final['POSITION'] = df_final['S/N']
+            st.dataframe(df_final, use_container_width=True, index=False)
 
 # ------------------------------------------------------------------
 # KIPENGELE 11: RIPOTI BINAFSI YA MWANAFUNZI (PDF)
 # ------------------------------------------------------------------
 elif chaguo == "11. Ripoti Binafsi ya Mwanafunzi (PDF)":
     st.header("11. Pakua Ripoti ya Mwanafunzi Binafsi / Shule Nzima")
-    db_maj = st.session_state[f'almar_majaribio_{darasa_id}']
-    db_mit = st.session_state[f'almar_mitihani_{darasa_id}']
+    db_maj = st.session_state[f'alama_majaribio_db_{darasa_id}']
+    db_mit = st.session_state[f'alama_mitihani_db_{darasa_id}']
 
-    if len(names_list) == 0 or db_maj.empty or db_mit.empty:
-        st.warning("Tafadhali hakikisha majina na alama zote zimejazwa kwanza.")
+    if len(names_list) == 0:
+        st.warning("Tafadhali hakikisha majina yamejazwa.")
     else:
-        def andaa_data_mwanafunzi(idx_mwa, jina_mwa):
+        def andaa_data_mwanafunzi(jina_mwa):
             data_somo_pdf = [["Somo", "Majaribio", "Mtihani", "Wastani", "Gredi", "Maelezo"]]
             masomo_yake = masomo_wanafunzi.get(jina_mwa, masomo_shule)
             pointi_list = []
             
             for somo in masomo_shule:
                 if somo in masomo_yake:
-                    cwt = pd.to_numeric(db_maj.loc[idx_mwa, f"{somo} (100%)"], errors='coerce')
-                    eet = pd.to_numeric(db_mit.loc[idx_mwa, f"{somo} (100%)"], errors='coerce')
-                    cwt_v = float(cwt) if not pd.isna(cwt) else 0.0
-                    eet_v = float(eet) if not pd.isna(eet) else 0.0
+                    maj_val = db_maj[(db_maj['Jina la Mwanafunzi'] == jina_mwa) & (db_maj['Somo'] == somo)]['Alama'].values
+                    mit_val = db_mit[(db_mit['Jina la Mwanafunzi'] == jina_mwa) & (db_mit['Somo'] == somo)]['Alama'].values
+                    
+                    cwt_v = float(maj_val[0]) if len(maj_val) > 0 and pd.notna(maj_val[0]) else 0.0
+                    eet_v = float(mit_val[0]) if len(mit_val) > 0 and pd.notna(mit_val[0]) else 0.0
+                    
                     tot = round((cwt_v + eet_v) / 2, 1)
                     gr, pt = calculate_grade_and_points(tot)
                     if gr: 
@@ -420,11 +471,8 @@ elif chaguo == "11. Ripoti Binafsi ya Mwanafunzi (PDF)":
             return data_somo_pdf, pts_saba, div_final
 
         col_p1, col_p2 = st.columns(2)
-        
         with col_p1:
             mwanafunzi_sel = st.selectbox("Chagua mwanafunzi:", names_list)
-            idx_mwa = names_list.index(mwanafunzi_sel)
-            
             if st.button(f"Tengeneza PDF ya {mwanafunzi_sel}"):
                 buffer = io.BytesIO()
                 doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=30, bottomMargin=30)
@@ -437,11 +485,10 @@ elif chaguo == "11. Ripoti Binafsi ya Mwanafunzi (PDF)":
                 story.append(Paragraph(f"<b>{shule_info['shule']} (CENTRE: {shule_info['namba_shule']})</b>", style_head))
                 story.append(Spacer(1, 15))
                 
-                jinsia_mwa = wanafunzi_db.loc[idx_mwa, 'Jinsia (M/F)']
-                namba_mwa = wanafunzi_db.loc[idx_mwa, 'Namba ya Usajili']
-                story.append(Paragraph(f"<b>Jina:</b> {mwanafunzi_sel} | <b>Jinsia:</b> {jinsia_mwa} | <b>Namba:</b> {namba_mwa}", style_normal))
+                m_info = wanafunzi_db[wanafunzi_db['Jina la Mwanafunzi'] == mwanafunzi_sel].iloc[0]
+                story.append(Paragraph(f"<b>Jina:</b> {mwanafunzi_sel} | <b>Jinsia:</b> {m_info['Jinsia (M/F)']} | <b>Namba:</b> {m_info['Namba ya Usajili']}", style_normal))
                 
-                data_somo, pts, div = andaa_data_mwanafunzi(idx_mwa, mwanafunzi_sel)
+                data_somo, pts, div = andaa_data_mwanafunzi(mwanafunzi_sel)
                 t = Table(data_somo, colWidths=[160, 70, 70, 70, 50, 100])
                 t.setStyle(TableStyle([
                     ('BACKGROUND', (0,0), (-1,0), colors.grey),
@@ -468,16 +515,15 @@ elif chaguo == "11. Ripoti Binafsi ya Mwanafunzi (PDF)":
                 style_head = ParagraphStyle('HHeadAll', parent=styles['Heading2'], alignment=1, spaceAfter=4)
                 style_normal = ParagraphStyle('NHeadAll', parent=styles['Normal'], spaceAfter=12, fontSize=11)
                 
-                for idx_all, jina_all in enumerate(names_list):
+                for jina_all in names_list:
                     story_all.append(Paragraph(f"<b>{shule_info['wizara']}</b>", style_head))
                     story_all.append(Paragraph(f"<b>{shule_info['shule']}</b>", style_head))
                     story_all.append(Spacer(1, 10))
                     
-                    jinsia_all = wanafunzi_db.loc[idx_all, 'Jinsia (M/F)']
-                    namba_all = wanafunzi_db.loc[idx_all, 'Namba ya Usajili']
-                    story_all.append(Paragraph(f"<b>Mwanafunzi:</b> {jina_all} | <b>Jinsia:</b> {jinsia_all} | <b>Namba:</b> {namba_all}", style_normal))
+                    m_info = wanafunzi_db[wanafunzi_db['Jina la Mwanafunzi'] == jina_all].iloc[0]
+                    story_all.append(Paragraph(f"<b>Mwanafunzi:</b> {jina_all} | <b>Jinsia:</b> {m_info['Jinsia (M/F)']} | <b>Namba:</b> {m_info['Namba ya Usajili']}", style_normal))
                     
-                    data_somo, pts, div = andaa_data_mwanafunzi(idx_all, jina_all)
+                    data_somo, pts, div = andaa_data_mwanafunzi(jina_all)
                     t = Table(data_somo, colWidths=[160, 70, 70, 70, 50, 100])
                     t.setStyle(TableStyle([
                         ('BACKGROUND', (0,0), (-1,0), colors.grey),
@@ -493,3 +539,46 @@ elif chaguo == "11. Ripoti Binafsi ya Mwanafunzi (PDF)":
                 doc_all.build(story_all)
                 buffer_all.seek(0)
                 st.download_button(label="Pakua PDF ya Shule Nzima", data=buffer_all.getvalue(), file_name=f"Ripoti_Shule_Nzima_{darasa_id}.pdf", mime="application/pdf")
+
+# ------------------------------------------------------------------
+# KIPENGELE 12: PAKUA FOMU ZA CAL NA ISAL (KILA SOMO)
+# ------------------------------------------------------------------
+elif chaguo == "12. Pakua Fomu za CAL na ISAL":
+    st.header("12. Kupakua Fomu za CAL na ISAL kwa Kila Somo")
+    if len(names_list) == 0:
+        st.warning("Hakuna wanafunzi waliosajiliwa kwenye mfumo.")
+    else:
+        somo_download = st.selectbox("Chagua Somo la Kupakulia CAL / ISAL:", masomo_shule)
+        
+        # Chuja orodha ya wanafunzi wa somo hili
+        wanafunzi_wa_somo = [jina for jina in names_list if somo_download in masomo_wanafunzi.get(jina, masomo_shule)]
+        
+        if not wanafunzi_wa_somo:
+            st.warning(f"Hakuna mwanafunzi aliyesajiliwa kwenye somo la {somo_download}")
+        else:
+            rows_cal = []
+            for idx, jina in enumerate(wanafunzi_wa_somo):
+                m_info = wanafunzi_db[wanafunzi_db['Jina la Mwanafunzi'] == jina].iloc[0]
+                rows_cal.append({
+                    'S/N': idx + 1,
+                    'INDEX NO': m_info['Namba ya Usajili'],
+                    'CANDIDATE NAME': jina,
+                    'SEX': m_info['Jinsia (M/F)'],
+                    'STATUS': 'REGISTERED'
+                })
+            df_cal = pd.DataFrame(rows_cal)
+            
+            st.write(f"Hakiki ya Usajili wa Somo la: **{somo_download}** (Jumla: {len(df_cal)})")
+            st.dataframe(df_cal, use_container_width=True, index=False)
+            
+            # Kutengeneza faili la Excel la kupakua
+            buffer_cal = io.BytesIO()
+            with pd.ExcelWriter(buffer_cal, engine='openpyxl') as writer:
+                df_cal.to_excel(writer, index=False, sheet_name=f"{somo_download}_CAL_ISAL")
+            
+            st.download_button(
+                label=f"⬇️ Pakua CAL/ISAL ya ({somo_download}) Excel",
+                data=buffer_cal.getvalue(),
+                file_name=f"CAL_ISAL_{somo_download}_{darasa_id}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
