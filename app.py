@@ -53,17 +53,18 @@ darasa_id = kidato_kilichochaguliwa.replace(" ", "_")
 
 if f'shule_info_{darasa_id}' not in st.session_state:
     st.session_state[f'shule_info_{darasa_id}'] = {
-        "wizara": "PRIME MINISTER'S OFFICE", 
-        "mkoa": "MWANZA", 
+        "wizara": "PRIME MINISTER'S OFFICE",
+        "idara": "REGIONAL ADMINISTRATION AND LOCAL GOVERNMENT",
+        "mkoa": "MWANZA REGION", 
         "wilaya": "BUCHOSA DISTRICT COUNCIL", 
         "shule": "CHEMA SECONDARY SCHOOL", 
         "namba_shule": "S7647", 
-        "aina_mtihani": f"MOCK EXAMINATION - {kidato_kilichochaguliwa}", 
-        "mwaka": "2026"
+        "aina_mtihani": f"TERMINAL JOINT EXAMINATION", 
+        "mwaka": "2026, MAY-2026"
     }
 
 if f'masomo_shule_{darasa_id}' not in st.session_state:
-    st.session_state[f'masomo_shule_{darasa_id}'] = ['CIVICS', 'HISTORY', 'GEOGRAPHY', 'KISWAHILI', 'ENGLISH LANGUAGE', 'PHYSICS', 'CHEMISTRY', 'BIOLOGY', 'BASIC MATHEMATICS']
+    st.session_state[f'masomo_shule_{darasa_id}'] = ['HISTORY', 'GEOGRAPHY', 'KISWAHILI', 'ENGLISH LANGUAGE', 'PHYSICS', 'CHEMISTRY', 'BIOLOGY', 'BASIC MATHEMATICS', 'COMPUTER SCIENCE']
 
 if f'remarks_dict_{darasa_id}' not in st.session_state:
     st.session_state[f'remarks_dict_{darasa_id}'] = {'A': 'Bora Sana', 'B': 'Bora', 'C': 'Vizuri', 'D': 'Inaridhisha', 'F': 'Imefeli'}
@@ -137,16 +138,17 @@ if chaguo == "0. Kuhusu Mfumo":
 # ------------------------------------------------------------------
 # KIPENGELE 1: TAARIFA BINAFSI ZA MTIHANI (ADMIN ONLY)
 # ------------------------------------------------------------------
-elif chaguo == "1. Taarifa Binafsi za Mtihani" and is_admin:
+elif chaguo == "1. Taarifa za Shule na Mtihani" and is_admin:
     st.header("1. Taarifa za Shule na Mtihani")
     with st.form("taarifa_shule_form"):
         shule_info["wizara"] = st.text_input("Wizara", shule_info["wizara"])
+        shule_info["idara"] = st.text_input("Idara Kuu (k.mf RALG)", shule_info["idara"])
         shule_info["mkoa"] = st.text_input("Mkoa", shule_info["mkoa"])
         shule_info["wilaya"] = st.text_input("Wilaya / Halmashauri", shule_info["wilaya"])
         shule_info["shule"] = st.text_input("Jina la Shule", shule_info["shule"])
         shule_info["namba_shule"] = st.text_input("Namba ya Kituo (Centre No)", shule_info["namba_shule"])
         shule_info["aina_mtihani"] = st.text_input("Aina ya Mtihani", shule_info["aina_mtihani"])
-        shule_info["mwaka"] = st.text_input("Mwaka / Mwezi", shule_info["mwaka"])
+        shule_info["mwaka"] = st.text_input("Mwaka / Kipindi (k.mf. MAY-2026)", shule_info["mwaka"])
         
         st.subheader("Badili Maelezo ya Gredi (Remarks)")
         for key in remarks_dict.keys():
@@ -531,41 +533,123 @@ elif chaguo == "11. Ripoti Binafsi ya Mwanafunzi (PDF)":
                 st.download_button(label="Pakua PDF ya Shule Nzima", data=buffer_all.getvalue(), file_name=f"Ripoti_Shule_Nzima_{darasa_id}.pdf", mime="application/pdf")
 
 # ------------------------------------------------------------------
-# KIPENGELE 12: PAKUA FOMU ZA CAL NA ISAL (KILA SOMO)
+# KIPENGELE 12: PAKUA FOMU ZA CAL NA ISAL (ZILIZOBORESHWA)
 # ------------------------------------------------------------------
 elif chaguo == "12. Pakua Fomu za CAL na ISAL":
-    st.header("12. Kupakua Fomu za CAL na ISAL kwa Kila Somo")
+    st.header("12. Pakua Fomu Rasmi za CAL na ISAL (NECTA Format)")
+    
     if len(names_list) == 0:
-        st.warning("Hakuna wanafunzi waliosajiliwa kwenye mfumo.")
+        st.warning("Hakuna wanafunzi waliosajiliwa kwenye mfumo hadi sasa.")
     else:
-        somo_download = st.selectbox("Chagua Somo la Kupakulia CAL / ISAL:", masomo_shule)
-        wanafunzi_wa_somo = [jina for jina in names_list if somo_download in masomo_wanafunzi.get(jina, masomo_shule)]
+        tab_cal, tab_isal = st.tabs(["📊 PAKUA CAL (Jumla)", "📝 PAKUA ISAL (Kila Somo)"])
         
-        if not wanafunzi_wa_somo:
-            st.warning(f"Hakuna mwanafunzi aliyesajiliwa kwenye somo la {somo_download}")
-        else:
+        # 1. GENERATE CAL SHEET
+        with tab_cal:
+            st.write("Fomu hii inajumuisha masomo yote kwa pamoja kuonesha mtahiniwa amesajiliwa masomo gani.")
+            
+            # Kujenga orodha ya data
             rows_cal = []
-            for idx, jina in enumerate(wanafunzi_wa_somo):
-                m_info = wanafunzi_db[wanafunzi_db['Jina la Mwanafunzi'] == jina].iloc[0]
-                rows_cal.append({
+            for idx, mwa in wanafunzi_db.iterrows():
+                jina = mwa['Jina la Mwanafunzi']
+                m_yake = masomo_wanafunzi.get(jina, masomo_shule)
+                
+                stari = {
                     'S/N': idx + 1,
-                    'INDEX NO': m_info['Namba ya Usajili'],
-                    'CANDIDATE NAME': jina,
-                    'SEX': m_info['Jinsia (M/F)'],
-                    'STATUS': 'REGISTERED'
-                })
-            df_cal = pd.DataFrame(rows_cal)
+                    'NAME OF CANDIDATE': jina,
+                    'SEX': mwa['Jinsia (M/F)'],
+                    'EXAM NO.': mwa['Namba ya Usajili'],
+                    'SCHOOL NAME': shule_info['shule'].split()[0], # Inachukua neno la kwanza k.mf CHEMA
+                    'TOTAL REGISTERED SUBJECTS': len(m_yake)
+                }
+                
+                # Kuweka alama ya '_' kwa masomo aliyosajiliwa
+                for s in masomo_shule:
+                    stari[s] = "_" if s in m_yake else ""
+                    
+                stari['SIGNATURE'] = ""
+                rows_cal.append(stari)
+                
+            df_cal_data = pd.DataFrame(rows_cal)
             
-            st.write(f"Hakiki ya Usajili wa Somo la: **{somo_download}** (Jumla: {len(df_cal)})")
-            st.dataframe(df_cal, use_container_width=True, hide_index=True)
+            # Hakiki kwenye Screen
+            st.dataframe(df_cal_data, use_container_width=True, hide_index=True)
             
+            # Kujenga Excel yenye Vichwa Rasmi vya Juu
             buffer_cal = io.BytesIO()
             with pd.ExcelWriter(buffer_cal, engine='openpyxl') as writer:
-                df_cal.to_excel(writer, index=False, sheet_name=f"{somo_download}_CAL_ISAL")
-            
+                # Unda dataframe tupu ya header
+                hdr_rows = [
+                    [shule_info['wizara'], "", "", "", ""],
+                    [shule_info['idara'], "", "", "", ""],
+                    [shule_info['mkoa'], "", "", "", ""],
+                    [shule_info['wilaya'], "", "", "", ""],
+                    [f"{shule_info['aina_mtihani']} {shule_info['mwaka']}", "", "", "", ""],
+                    [f"CENTER NO: {shule_info['namba_shule']}      CENTER NAME: {shule_info['shule']}", "", "", "", ""],
+                    ["COLLECTIVE ATTENDANCE LIST (CAL)", "", "", "", ""],
+                    ["", "", "", "", ""]
+                ]
+                df_hdr = pd.DataFrame(hdr_rows)
+                df_hdr.to_excel(writer, index=False, header=False, sheet_name="CAL")
+                
+                # Andika data chini ya header (Mstari wa 9)
+                df_cal_data.to_excel(writer, index=False, startrow=8, sheet_name="CAL")
+                
             st.download_button(
-                label=f"⬇️ Pakua CAL/ISAL ya ({somo_download}) Excel",
+                label="⬇️ Pakua Fomu ya CAL (Excel)",
                 data=buffer_cal.getvalue(),
-                file_name=f"CAL_ISAL_{somo_download}_{darasa_id}.xlsx",
+                file_name=f"CAL_{darasa_id}_{shule_info['namba_shule']}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
+            
+        # 2. GENERATE ISAL SHEET
+        with tab_isal:
+            st.write("Chagua somo husika ili kuzalisha fomu ya mahudhurio ya chumbani kwa ajili ya somo hilo pekee.")
+            somo_isal = st.selectbox("Chagua Somo:", masomo_shule)
+            
+            # Filter wanafunzi wanaofanya somo hili tu
+            wanafunzi_wa_somo = [jina for jina in names_list if somo_isal in masomo_wanafunzi.get(jina, masomo_shule)]
+            
+            if not wanafunzi_wa_somo:
+                st.warning(f"Hakuna wanafunzi waliosajiliwa kwenye somo la {somo_isal}")
+            else:
+                rows_isal = []
+                for idx, jina in enumerate(wanafunzi_wa_somo):
+                    m_info = wanafunzi_db[wanafunzi_db['Jina la Mwanafunzi'] == jina].iloc[0]
+                    rows_isal.append({
+                        'S/N': idx + 1,
+                        'NAME OF CANDIDATE': jina,
+                        'SEX': m_info['Jinsia (M/F)'],
+                        'EXAM NO.': m_info['Namba ya Usajili'],
+                        'SIGNATURE': "" # Wazi kwa ajili ya kusaini kwa mkono
+                    })
+                df_isal_data = pd.DataFrame(rows_isal)
+                
+                # Hakiki
+                st.dataframe(df_isal_data, use_container_width=True, hide_index=True)
+                
+                # Kujenga Excel ya ISAL yenye Header
+                buffer_isal = io.BytesIO()
+                with pd.ExcelWriter(buffer_isal, engine='openpyxl') as writer:
+                    hdr_rows_isal = [
+                        [shule_info['wizara'], "", "", ""],
+                        [shule_info['idara'], "", "", ""],
+                        [shule_info['mkoa'], "", "", ""],
+                        [shule_info['wilaya'], "", "", ""],
+                        [f"{shule_info['aina_mtihani']} {shule_info['mwaka']}", "", "", ""],
+                        ["INDIVIDUAL SUBJECT ATTENDANCE LIST (ISAL)", "", "", ""],
+                        [f"CLASS: {kidato_kilichochaguliwa}    CENTER NO: {shule_info['namba_shule']}    CENTER NAME: {shule_info['shule']}", "", "", ""],
+                        [f"SUBJECT NAME: {somo_isal}           DATE: ________", "", "", ""],
+                        ["", "", "", ""]
+                    ]
+                    df_hdr_isal = pd.DataFrame(hdr_rows_isal)
+                    df_hdr_isal.to_excel(writer, index=False, header=False, sheet_name="ISAL")
+                    
+                    # Andika data (Mstari wa 10)
+                    df_isal_data.to_excel(writer, index=False, startrow=9, sheet_name="ISAL")
+                    
+                st.download_button(
+                    label=f"⬇️ Pakua Fomu ya ISAL - {somo_isal} (Excel)",
+                    data=buffer_isal.getvalue(),
+                    file_name=f"ISAL_{somo_isal}_{darasa_id}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
