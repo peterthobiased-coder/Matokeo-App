@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as str
 import pandas as pd
 import numpy as np
 import io
@@ -59,7 +59,7 @@ if f'shule_info_{darasa_id}' not in st.session_state:
         "wilaya": "BUCHOSA DISTRICT COUNCIL", 
         "shule": "CHEMA SECONDARY SCHOOL", 
         "namba_shule": "S7647", 
-        "aina_mtihani": f"TERMINAL JOINT EXAMINATION", 
+        "aina_mtihani": "TERMINAL JOINT EXAMINATION", 
         "mwaka": "2026, MAY-2026"
     }
 
@@ -108,7 +108,7 @@ if hali_ya_mtumiaji == "Admin (Mkuu wa Shule)":
 orodha_ya_menu = ["0. Kuhusu Mfumo"]
 if is_admin:
     orodha_ya_menu.extend([
-        "1. Taarifa Binafsi za Mtihani",
+        "1. Taarifa za Shule na Mtihani",
         "2. Usajili wa Masomo ya Shule (Hadi 20)",
         "3. Sajili Majina ya Wanafunzi",
         "4. Kumsajilia Mwanafunzi Masomo"
@@ -533,7 +533,7 @@ elif chaguo == "11. Ripoti Binafsi ya Mwanafunzi (PDF)":
                 st.download_button(label="Pakua PDF ya Shule Nzima", data=buffer_all.getvalue(), file_name=f"Ripoti_Shule_Nzima_{darasa_id}.pdf", mime="application/pdf")
 
 # ------------------------------------------------------------------
-# KIPENGELE 12: PAKUA FOMU ZA CAL NA ISAL (ZILIZOBORESHWA)
+# KIPENGELE 12: PAKUA FOMU ZA CAL NA ISAL (ZILIZOSAHIHISHWA KIKAMILIFU)
 # ------------------------------------------------------------------
 elif chaguo == "12. Pakua Fomu za CAL na ISAL":
     st.header("12. Pakua Fomu Rasmi za CAL na ISAL (NECTA Format)")
@@ -547,7 +547,6 @@ elif chaguo == "12. Pakua Fomu za CAL na ISAL":
         with tab_cal:
             st.write("Fomu hii inajumuisha masomo yote kwa pamoja kuonesha mtahiniwa amesajiliwa masomo gani.")
             
-            # Kujenga orodha ya data
             rows_cal = []
             for idx, mwa in wanafunzi_db.iterrows():
                 jina = mwa['Jina la Mwanafunzi']
@@ -558,11 +557,10 @@ elif chaguo == "12. Pakua Fomu za CAL na ISAL":
                     'NAME OF CANDIDATE': jina,
                     'SEX': mwa['Jinsia (M/F)'],
                     'EXAM NO.': mwa['Namba ya Usajili'],
-                    'SCHOOL NAME': shule_info['shule'].split()[0], # Inachukua neno la kwanza k.mf CHEMA
+                    'SCHOOL NAME': shule_info['shule'].split()[0],
                     'TOTAL REGISTERED SUBJECTS': len(m_yake)
                 }
                 
-                # Kuweka alama ya '_' kwa masomo aliyosajiliwa
                 for s in masomo_shule:
                     stari[s] = "_" if s in m_yake else ""
                     
@@ -570,14 +568,15 @@ elif chaguo == "12. Pakua Fomu za CAL na ISAL":
                 rows_cal.append(stari)
                 
             df_cal_data = pd.DataFrame(rows_cal)
-            
-            # Hakiki kwenye Screen
             st.dataframe(df_cal_data, use_container_width=True, hide_index=True)
             
-            # Kujenga Excel yenye Vichwa Rasmi vya Juu
             buffer_cal = io.BytesIO()
             with pd.ExcelWriter(buffer_cal, engine='openpyxl') as writer:
-                # Unda dataframe tupu ya header
+                # Chukua karatasi ya kwanza inayoundwa na openpyxl yenyewe
+                wb = writer.book
+                ws = wb.active
+                ws.title = "CAL"
+                
                 hdr_rows = [
                     [shule_info['wizara'], "", "", "", ""],
                     [shule_info['idara'], "", "", "", ""],
@@ -589,10 +588,13 @@ elif chaguo == "12. Pakua Fomu za CAL na ISAL":
                     ["", "", "", "", ""]
                 ]
                 df_hdr = pd.DataFrame(hdr_rows)
-                df_hdr.to_excel(writer, index=False, header=False, sheet_name="CAL")
                 
-                # Andika data chini ya header (Mstari wa 9)
+                # Andika zote mbili kwenye sheet hiyo hiyo ya "CAL" iliyo wazi
+                df_hdr.to_excel(writer, index=False, header=False, sheet_name="CAL")
                 df_cal_data.to_excel(writer, index=False, startrow=8, sheet_name="CAL")
+                
+                # Kulazimisha mfumo kutambua sheet ipo visible
+                ws.views.sheetView[0].tabSelected = True
                 
             st.download_button(
                 label="⬇️ Pakua Fomu ya CAL (Excel)",
@@ -606,7 +608,6 @@ elif chaguo == "12. Pakua Fomu za CAL na ISAL":
             st.write("Chagua somo husika ili kuzalisha fomu ya mahudhurio ya chumbani kwa ajili ya somo hilo pekee.")
             somo_isal = st.selectbox("Chagua Somo:", masomo_shule)
             
-            # Filter wanafunzi wanaofanya somo hili tu
             wanafunzi_wa_somo = [jina for jina in names_list if somo_isal in masomo_wanafunzi.get(jina, masomo_shule)]
             
             if not wanafunzi_wa_somo:
@@ -620,16 +621,17 @@ elif chaguo == "12. Pakua Fomu za CAL na ISAL":
                         'NAME OF CANDIDATE': jina,
                         'SEX': m_info['Jinsia (M/F)'],
                         'EXAM NO.': m_info['Namba ya Usajili'],
-                        'SIGNATURE': "" # Wazi kwa ajili ya kusaini kwa mkono
+                        'SIGNATURE': ""
                     })
                 df_isal_data = pd.DataFrame(rows_isal)
-                
-                # Hakiki
                 st.dataframe(df_isal_data, use_container_width=True, hide_index=True)
                 
-                # Kujenga Excel ya ISAL yenye Header
                 buffer_isal = io.BytesIO()
                 with pd.ExcelWriter(buffer_isal, engine='openpyxl') as writer:
+                    wb_isal = writer.book
+                    ws_isal = wb_isal.active
+                    ws_isal.title = "ISAL"
+                    
                     hdr_rows_isal = [
                         [shule_info['wizara'], "", "", ""],
                         [shule_info['idara'], "", "", ""],
@@ -642,10 +644,12 @@ elif chaguo == "12. Pakua Fomu za CAL na ISAL":
                         ["", "", "", ""]
                     ]
                     df_hdr_isal = pd.DataFrame(hdr_rows_isal)
-                    df_hdr_isal.to_excel(writer, index=False, header=False, sheet_name="ISAL")
                     
-                    # Andika data (Mstari wa 10)
+                    df_hdr_isal.to_excel(writer, index=False, header=False, sheet_name="ISAL")
                     df_isal_data.to_excel(writer, index=False, startrow=9, sheet_name="ISAL")
+                    
+                    # Kulazimisha mfumo kutambua sheet ipo visible
+                    ws_isal.views.sheetView[0].tabSelected = True
                     
                 st.download_button(
                     label=f"⬇️ Pakua Fomu ya ISAL - {somo_isal} (Excel)",
