@@ -171,26 +171,14 @@ elif chaguo == "2. Usajili wa Masomo ya Shule (Hadi 20)" and is_admin:
         st.success(f"Usajili umekamilika. Jumla ya masomo: {len(masomo_yaliyosafishwa)}")
 
 # ------------------------------------------------------------------
-# KIPENGELE 3: SAJILI MAJINA YA WANAFUNZI (ADMIN ONLY)
-# ------------------------------------------------------------------
-# ------------------------------------------------------------------
 # KIPENGELE 3: SAJILI MAJINA YA WANAFUNZI (ADMIN ONLY) - IMEBORESHWA
 # ------------------------------------------------------------------
 elif chaguo == "3. Sajili Majina ya Wanafunzi" and is_admin:
     st.header(f"3. Sajili Wanafunzi - {kidato_kilichochaguliwa}")
     tab1, tab2 = st.tabs(["Fomu ya Usajili", "Kupandisha Excel"])
     
-     with tab1:
-        # Hapa ndipo tulipobadilisha 'fomu_mwanafunzi' na kuwa na darasa_id mwishoni
+    with tab1:
         with st.form(f"fomu_mwanafunzi_{darasa_id}"):
-            mpya_jina = st.text_input("Jina Kamili la Mwanafunzi:").upper()
-            mpya_jinsia = st.selectbox("Jinsia:", ["M", "F"])
-            mpya_namba = st.text_input("Namba ya Usajili:", f"{shule_info['namba_shule']}/{str(len(wanafunzi_db)+1).zfill(4)}")
-            wasilisha = st.form_submit_button("Sajili")
-            if wasilisha and mpya_jina:
-                mpya_row = pd.DataFrame([[mpya_jina, mpya_jinsia, mpya_namba]], columns=['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'])
-                st.session_state[f'wanafunzi_db_{darasa_id}'] = pd.concat([wanafunzi_db, mpya_row], ignore_index=True)
-                st.rerun()
             mpya_jina = st.text_input("Jina Kamili la Mwanafunzi:").upper()
             mpya_jinsia = st.selectbox("Jinsia:", ["M", "F"])
             mpya_namba = st.text_input("Namba ya Usajili:", f"{shule_info['namba_shule']}/{str(len(wanafunzi_db)+1).zfill(4)}")
@@ -203,9 +191,7 @@ elif chaguo == "3. Sajili Majina ya Wanafunzi" and is_admin:
     with tab2:
         st.subheader("Pakua na Upakie Template ya Excel")
         
-        # 1. Kutengeneza Template ya Excel kwa ajili ya kupakuliwa
         template_df = pd.DataFrame(columns=['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'])
-        # Mfano wa data ili mtumiaji aone jinsi ya kujaza
         template_df.loc[0] = ["JUMA HAMISI", "M", f"{shule_info['namba_shule']}/0001"]
         
         buffer_template = io.BytesIO()
@@ -222,23 +208,17 @@ elif chaguo == "3. Sajili Majina ya Wanafunzi" and is_admin:
         
         st.write("---")
         
-        # 2. Sehemu ya kupakia (Upload) faili lililojazwa
         uploaded_file = st.file_uploader("Pandisha Excel iliyojazwa (.xlsx):", type=["xlsx"])
         if uploaded_file is not None:
             try:
                 df_up = pd.read_excel(uploaded_file)
-                
-                # Kusafisha majina ya nguzo ili kuzuia makosa ya nafasi (spaces) au herufi kubwa/ndogo
                 df_up.columns = [str(c).strip() for c in df_up.columns]
-                
-                Vigezo_vya_lazima = ['Jina la Mwanafunzi', 'Jinsia (M/F)']
+                vigezo_vya_lazima = ['Jina la Mwanafunzi', 'Jinsia (M/F)']
                 
                 if all(kalamu in df_up.columns for kalamu in vigezo_vya_lazima):
-                    # Hakikisha safu ya Namba ya Usajili ipo, isipokuwepo inajizalisha yenyewe
                     if 'Namba ya Usajili' not in df_up.columns:
                         df_up['Namba ya Usajili'] = [f"{shule_info['namba_shule']}/{str(i+1).zfill(4)}" for i in range(len(df_up))]
                     
-                    # Kusafisha na kuweka herufi kubwa kwenye majina na jinsia
                     df_up['Jina la Mwanafunzi'] = df_up['Jina la Mwanafunzi'].astype(str).str.upper().str.strip()
                     df_up['Jinsia (M/F)'] = df_up['Jinsia (M/F)'].astype(str).str.upper().str.strip()
                     
@@ -252,30 +232,6 @@ elif chaguo == "3. Sajili Majina ya Wanafunzi" and is_admin:
 
     st.write("---")
     st.subheader("Orodha ya Wanafunzi Waliosajiliwa")
-    st.dataframe(st.session_state[f'wanafunzi_db_{darasa_id}'], use_container_width=True)
-    st.header(f"3. Sajili Wanafunzi - {kidato_kilichochaguliwa}")
-    tab1, tab2 = st.tabs(["Fomu ya Usajili", "Kupandisha Excel"])
-    
-    with tab1:
-        with st.form("fomu_mwanafunzi"):
-            mpya_jina = st.text_input("Jina Kamili la Mwanafunzi:").upper()
-            mpya_jinsia = st.selectbox("Jinsia:", ["M", "F"])
-            mpya_namba = st.text_input("Namba ya Usajili:", f"{shule_info['namba_shule']}/{str(len(wanafunzi_db)+1).zfill(4)}")
-            wasilisha = st.form_submit_button("Sajili")
-            if wasilisha and mpya_jina:
-                mpya_row = pd.DataFrame([[mpya_jina, mpya_jinsia, mpya_namba]], columns=['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'])
-                st.session_state[f'wanafunzi_db_{darasa_id}'] = pd.concat([wanafunzi_db, mpya_row], ignore_index=True)
-                st.rerun()
-
-    with tab2:
-        uploaded_file = st.file_uploader("Pandisha Excel (.xlsx):", type=["xlsx"])
-        if uploaded_file is not None:
-            df_up = pd.read_excel(uploaded_file)
-            if 'Jina la Mwanafunzi' in df_up.columns and 'Jinsia (M/F)' in df_up.columns:
-                st.session_state[f'wanafunzi_db_{darasa_id}'] = df_up[['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili']].dropna(subset=['Jina la Mwanafunzi']).reset_index(drop=True)
-                st.success("Wanafunzi wameongezwa kikamilifu!")
-                st.rerun()
-
     st.dataframe(st.session_state[f'wanafunzi_db_{darasa_id}'], use_container_width=True)
 
 # ------------------------------------------------------------------
@@ -334,17 +290,23 @@ elif chaguo == "6. Kujaza Alama za Mitihani (100%)":
 # KIPENGELE 7 & 8 & 9: PREVIEWS
 # ------------------------------------------------------------------
 elif chaguo == "7. Matokeo ya Majaribio Pekee":
-    st.dataframe(st.session_state[f'almar_majaribio_{darasa_id}'], use_container_width=True)
+    if st.session_state[f'almar_majaribio_{darasa_id}'].empty:
+        st.warning("Hakuna alama za majaribio zilizojazwa bado.")
+    else:
+        st.dataframe(st.session_state[f'almar_majaribio_{darasa_id}'], use_container_width=True)
 
 elif chaguo == "8. Matokeo ya Mitihani Pekee":
-    st.dataframe(st.session_state[f'almar_mitihani_{darasa_id}'], use_container_width=True)
+    if st.session_state[f'almar_mitihani_{darasa_id}'].empty:
+        st.warning("Hakuna alama za mitihani zilizojazwa bado.")
+    else:
+        st.dataframe(st.session_state[f'almar_mitihani_{darasa_id}'], use_container_width=True)
 
 elif chaguo == "9. Matokeo ya Majaribio & Mitihani (Average)":
     st.header("9. Wastani wa Majaribio na Mitihani")
     db_maj = st.session_state[f'almar_majaribio_{darasa_id}']
     db_mit = st.session_state[f'almar_mitihani_{darasa_id}']
     if db_maj.empty or db_mit.empty:
-        st.warning("Data haijajazwa kikamilifu.")
+        st.warning("Data haijajazwa kikamilifu kwenye vipengele vya 5 na 6.")
     else:
         df_avg = wanafunzi_db.copy()
         for s in masomo_shule:
@@ -412,11 +374,14 @@ elif chaguo == "10. Matokeo ya NECTA Format & Summary":
             
             orodha_ripoti.append(taarifa)
 
-        df_final = pd.DataFrame(orodha_ripoti)
-        df_final = df_final.sort_values(by=['DIV', 'POINTS', 'AVG'], ascending=[True, True, False]).reset_index(drop=True)
-        df_final['POSITION'] = df_final.index + 1
-        df_final['S/N'] = df_final.index + 1
-        st.dataframe(df_final, use_container_width=True)
+        if orodha_ripoti:
+            df_final = pd.DataFrame(orodha_ripoti)
+            df_final = df_final.sort_values(by=['DIV', 'POINTS', 'AVG'], ascending=[True, True, False]).reset_index(drop=True)
+            df_final['POSITION'] = df_final.index + 1
+            df_final['S/N'] = df_final.index + 1
+            st.dataframe(df_final, use_container_width=True)
+        else:
+            st.warning("Hakuna taarifa za wanafunzi zilizopatikana.")
 
 # ------------------------------------------------------------------
 # KIPENGELE 11: RIPOTI BINAFSI YA MWANAFUNZI (PDF)
@@ -523,7 +488,7 @@ elif chaguo == "11. Ripoti Binafsi ya Mwanafunzi (PDF)":
                     story_all.append(t)
                     story_all.append(Spacer(1, 10))
                     story_all.append(Paragraph(f"<b>JUMLA YA POINTI:</b> {pts} | <b>DIVISION:</b> {div}", style_normal))
-                    story_all.append(PageBreak()) # Inatenganisha kila mwanafunzi na ukurasa mpya
+                    story_all.append(PageBreak())
                 
                 doc_all.build(story_all)
                 buffer_all.seek(0)
