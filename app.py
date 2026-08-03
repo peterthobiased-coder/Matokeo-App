@@ -1,4 +1,4 @@
-import streamlit as str
+import streamlit as st
 import pandas as pd
 import numpy as np
 import io
@@ -530,7 +530,7 @@ elif chaguo == "11. Ripoti Binafsi ya Mwanafunzi (PDF)":
                 
                 doc_all.build(story_all)
                 buffer_all.seek(0)
-                st.download_button(label="Pakua PDF ya Shule Nzima", data=buffer_all.getvalue(), file_name=f"Ripoti_Shule_Nzima_{darasa_id}.pdf", mime="application/pdf")
+                st.download_button(label="Pakua PDF ya Shule Nzima", file_name=f"Ripoti_Shule_Nzima_{darasa_id}.pdf", data=buffer_all.getvalue(), mime="application/pdf")
 
 # ------------------------------------------------------------------
 # KIPENGELE 12: PAKUA FOMU ZA CAL NA ISAL (ZILIZOSAHIHISHWA KIKAMILIFU)
