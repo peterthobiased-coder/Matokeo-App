@@ -71,25 +71,21 @@ if f'remarks_dict_{darasa_id}' not in st.session_state:
 if f'wanafunzi_db_{darasa_id}' not in st.session_state:
     st.session_state[f'wanafunzi_db_{darasa_id}'] = pd.DataFrame(columns=['Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'])
 
-# Hifadhi ya masomo aliyosajiliwa kila mwanafunzi mfano: {"JUMA": ["CIVICS", "HISTORY"]}
 if f'masomo_wanafunzi_{darasa_id}' not in st.session_state:
     st.session_state[f'masomo_wanafunzi_{darasa_id}'] = {}
 
-# Hifadhi mpya za alama: muundo ni DataFrame zenye nguzo [Jina la Mwanafunzi, Somo, Alama]
 if f'alama_majaribio_db_{darasa_id}' not in st.session_state:
     st.session_state[f'alama_majaribio_db_{darasa_id}'] = pd.DataFrame(columns=['Jina la Mwanafunzi', 'Somo', 'Alama'])
 
 if f'alama_mitihani_db_{darasa_id}' not in st.session_state:
     st.session_state[f'alama_mitihani_db_{darasa_id}'] = pd.DataFrame(columns=['Jina la Mwanafunzi', 'Somo', 'Alama'])
 
-# Njia fupi za kuita data
 shule_info = st.session_state[f'shule_info_{darasa_id}']
 masomo_shule = st.session_state[f'masomo_shule_{darasa_id}']
 remarks_dict = st.session_state[f'remarks_dict_{darasa_id}']
 wanafunzi_db = st.session_state[f'wanafunzi_db_{darasa_id}']
 masomo_wanafunzi = st.session_state[f'masomo_wanafunzi_{darasa_id}']
 
-# Hakikisha kila mwanafunzi aliyesajiliwa anapewa masomo yote ya shule kama default (kama hana)
 for jina in wanafunzi_db['Jina la Mwanafunzi'].tolist():
     if jina not in masomo_wanafunzi:
         masomo_wanafunzi[jina] = masomo_shule.copy()
@@ -227,10 +223,10 @@ elif chaguo == "3. Sajili Majina ya Wanafunzi" and is_admin:
     st.subheader("Orodha ya Wanafunzi Waliosajiliwa")
     wanafunzi_onyesho = st.session_state[f'wanafunzi_db_{darasa_id}'].copy()
     wanafunzi_onyesho.insert(0, 'S/N', range(1, len(wanafunzi_onyesho) + 1))
-    st.dataframe(wanafunzi_onyesho, use_container_width=True, index=False)
+    st.dataframe(wanafunzi_onyesho, use_container_width=True, hide_index=True)
 
 # ------------------------------------------------------------------
-# KIPENGELE 4: KUMSAJILIA MWANAFUNZI MASOMO (Njia Mbili: Moja kwa Moja / Excel)
+# KIPENGELE 4: KUMSAJILIA MWANAFUNZI MASOMO
 # ------------------------------------------------------------------
 elif chaguo == "4. Kumsajilia Mwanafunzi Masomo" and is_admin:
     st.header("4. Kusajili Masomo Maalum ya Wanafunzi")
@@ -248,7 +244,6 @@ elif chaguo == "4. Kumsajilia Mwanafunzi Masomo" and is_admin:
                 
         with tab_excel:
             st.subheader("Kusajili Masomo kwa Excel")
-            # Kutengeneza Excel Template
             rows_template = []
             for jina in names_list:
                 m_yake = masomo_wanafunzi.get(jina, masomo_shule)
@@ -284,7 +279,7 @@ elif chaguo == "4. Kumsajilia Mwanafunzi Masomo" and is_admin:
                     st.error(f"Hitilafu wakati wa kusoma Excel ya masomo: {e}")
 
 # ------------------------------------------------------------------
-# KIPENGELE 5 & 6: KUJAZA ALAMA KWA KUCHAGUA SOMO (Waliosajiliwa Tu)
+# KIPENGELE 5 & 6: KUJAZA ALAMA KWA KUCHAGUA SOMO
 # ------------------------------------------------------------------
 elif chaguo in ["5. Kujaza Alama za Majaribio (100%)", "6. Kujaza Alama za Mitihani (100%)"]:
     is_majaribio = "Majaribio" in chaguo
@@ -296,8 +291,6 @@ elif chaguo in ["5. Kujaza Alama za Majaribio (100%)", "6. Kujaza Alama za Mitih
         st.warning("Hakuna wanafunzi waliosajiliwa.")
     else:
         somo_sel = st.selectbox("Chagua Somo la Kujaza Alama:", masomo_shule)
-        
-        # Chuja tu wanafunzi waliosajiliwa na hilo somo
         wanafunzi_wa_somo = [jina for jina in names_list if somo_sel in masomo_wanafunzi.get(jina, masomo_shule)]
         
         if not wanafunzi_wa_somo:
@@ -305,14 +298,12 @@ elif chaguo in ["5. Kujaza Alama za Majaribio (100%)", "6. Kujaza Alama za Mitih
         else:
             st.info(f"Inaonyesha wanafunzi **{len(wanafunzi_wa_somo)}** waliosajiliwa somo la **{somo_sel}** pekee.")
             
-            # Kujenga DataFrame ya uhariri (Data Editor)
             current_db = st.session_state[db_key]
             rows_to_edit = []
             for idx, jina in enumerate(wanafunzi_wa_somo):
                 zilizopo = current_db[(current_db['Jina la Mwanafunzi'] == jina) & (current_db['Somo'] == somo_sel)]
                 alama_iliyopo = zilizopo['Alama'].values[0] if not zilizopo.empty else np.nan
                 
-                # Kupata namba ya usajili na jinsia
                 m_info = wanafunzi_db[wanafunzi_db['Jina la Mwanafunzi'] == jina].iloc[0]
                 rows_to_edit.append({
                     'S/N': idx + 1,
@@ -323,10 +314,9 @@ elif chaguo in ["5. Kujaza Alama za Majaribio (100%)", "6. Kujaza Alama za Mitih
                 })
             df_editor = pd.DataFrame(rows_to_edit)
             
-            edited_df = st.data_editor(df_editor, use_container_width=True, num_rows="fixed", disabled=['S/N','Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'])
+            edited_df = st.data_editor(df_editor, use_container_width=True, num_rows="fixed", disabled=['S/N','Jina la Mwanafunzi', 'Jinsia (M/F)', 'Namba ya Usajili'], hide_index=True)
             
             if st.button(f"Hifadhi Alama za {somo_sel}"):
-                # Futa alama za zamani za somo hili na weka mpya
                 temp_db = current_db[current_db['Somo'] != somo_sel].copy()
                 
                 new_rows = []
@@ -372,7 +362,7 @@ elif chaguo == "7. Wastani wa Majaribio & Mitihani":
                 stari[s] = round((m_score + e_score) / 2, 1)
             rows_avg.append(stari)
             
-        st.dataframe(pd.DataFrame(rows_avg), use_container_width=True, index=False)
+        st.dataframe(pd.DataFrame(rows_avg), use_container_width=True, hide_index=True)
 
 # ------------------------------------------------------------------
 # KIPENGELE 10: MATOKEO YA NECTA FORMAT & SUMMARY
@@ -430,7 +420,7 @@ elif chaguo == "10. Matokeo ya NECTA Format & Summary":
             df_final = df_final.sort_values(by=['DIV', 'POINTS', 'AVG'], ascending=[True, True, False]).reset_index(drop=True)
             df_final.insert(0, 'S/N', range(1, len(df_final) + 1))
             df_final['POSITION'] = df_final['S/N']
-            st.dataframe(df_final, use_container_width=True, index=False)
+            st.dataframe(df_final, use_container_width=True, hide_index=True)
 
 # ------------------------------------------------------------------
 # KIPENGELE 11: RIPOTI BINAFSI YA MWANAFUNZI (PDF)
@@ -549,8 +539,6 @@ elif chaguo == "12. Pakua Fomu za CAL na ISAL":
         st.warning("Hakuna wanafunzi waliosajiliwa kwenye mfumo.")
     else:
         somo_download = st.selectbox("Chagua Somo la Kupakulia CAL / ISAL:", masomo_shule)
-        
-        # Chuja orodha ya wanafunzi wa somo hili
         wanafunzi_wa_somo = [jina for jina in names_list if somo_download in masomo_wanafunzi.get(jina, masomo_shule)]
         
         if not wanafunzi_wa_somo:
@@ -569,9 +557,8 @@ elif chaguo == "12. Pakua Fomu za CAL na ISAL":
             df_cal = pd.DataFrame(rows_cal)
             
             st.write(f"Hakiki ya Usajili wa Somo la: **{somo_download}** (Jumla: {len(df_cal)})")
-            st.dataframe(df_cal, use_container_width=True, index=False)
+            st.dataframe(df_cal, use_container_width=True, hide_index=True)
             
-            # Kutengeneza faili la Excel la kupakua
             buffer_cal = io.BytesIO()
             with pd.ExcelWriter(buffer_cal, engine='openpyxl') as writer:
                 df_cal.to_excel(writer, index=False, sheet_name=f"{somo_download}_CAL_ISAL")
